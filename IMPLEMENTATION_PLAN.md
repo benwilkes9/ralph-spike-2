@@ -219,8 +219,8 @@ All share: id validation (positive integer, exists), title validation when provi
 - PATCH updates only provided fields; omitted fields remain unchanged
 - PATCH with `title` only updates title, leaves `completed` unchanged
 - PATCH with `completed` only updates completed, leaves `title` unchanged
-- PATCH with no recognised fields -> 422 with `"at least one field must be provided"`
-- PATCH with only unknown fields -> 422 with `"at least one field must be provided"` (unknown fields stripped, effectively empty)
+- PATCH with no recognised fields -> 422 with `"At least one field must be provided"`
+- PATCH with only unknown fields -> 422 with `"At least one field must be provided"` (unknown fields stripped, effectively empty)
 - `POST /todos/{id}/complete` sets `completed = true`, returns full todo with 200
 - `POST /todos/{id}/incomplete` sets `completed = false`, returns full todo with 200
 - Both convenience endpoints are idempotent (calling twice returns same result, no error)
@@ -330,7 +330,7 @@ When `sort=title`, sorting is case-insensitive (use `func.lower(title)`).
 | Duplicate title (case-insensitive) | 409 | `A todo with this title already exists` |
 | Invalid `id` (non-integer, zero, negative) | 422 | `id must be a positive integer` |
 | Todo not found | 404 | `Todo not found` |
-| PATCH with no recognised fields | 422 | `at least one field must be provided` |
+| PATCH with no recognised fields | 422 | `At least one field must be provided` |
 | Invalid `completed` query param | 422 | `completed must be true or false` |
 | Invalid `sort` query param | 422 | `sort must be 'id' or 'title'` |
 | Invalid `order` query param | 422 | `order must be 'asc' or 'desc'` |
