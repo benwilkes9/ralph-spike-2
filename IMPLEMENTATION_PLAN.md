@@ -1,14 +1,23 @@
 # Implementation Plan — Todo CRUD REST API
 
-## Status: Not Started
+## Status: In Progress - Tasks 1-10, 12 Complete
 
-The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a docstring, the single test only checks the package is importable, and no application code exists. Everything below needs to be built from scratch.
+## Summary of Implementation
+
+The Todo CRUD REST API has been successfully implemented with the following key architectural decisions:
+
+- **Database**: Shared in-memory SQLite using `file:test_db?mode=memory&cache=shared` for test isolation with thread-local connections
+- **Validation**: Manual JSON parsing in routes to handle validation priority ordering (missing → type → blank → length → uniqueness)
+- **Error Handling**: Custom HTTPError exception class with FastAPI exception handler for consistent `{"detail": string}` error format
+- **Initialization**: FastAPI lifespan context manager for DB initialization
+
+All core functionality (Tasks 1-10) and integration tests (Task 12) have been implemented and are passing.
 
 ---
 
 ## Task 1: Project Setup & Dependencies
 **Spec**: All specs (FastAPI implied by `error-handling.md` referencing FastAPI's default error structure)
-**Status**: NOT DONE
+**Status**: DONE
 
 - Add `fastapi`, `uvicorn[standard]` to `[project.dependencies]` in `pyproject.toml`
 - Add `httpx` to `[project.optional-dependencies] dev` (for async test client)
@@ -22,7 +31,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 2: Database Layer & Todo Model
 **Spec**: `specs/data-model.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Create `src/ralf_spike_2/database.py` — SQLite setup using `sqlite3` stdlib (or SQLAlchemy if preferred; keep it simple)
 - Create `src/ralf_spike_2/models.py` — Pydantic schemas for Todo (response), TodoCreate (request), TodoUpdate (PUT request), TodoPatch (PATCH request)
@@ -41,7 +50,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 3: Create Todo — `POST /todos`
 **Spec**: `specs/create-todo.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Create `src/ralf_spike_2/routes.py` (or `routers/todos.py`) with the POST endpoint
 - Create `src/ralf_spike_2/app.py` — FastAPI app wiring
@@ -65,7 +74,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 4: Retrieve Todos — `GET /todos` and `GET /todos/{id}`
 **Spec**: `specs/retrieve-todos.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - `GET /todos` returns all todos as a JSON array, ordered by `id` descending (newest first)
 - Returns `[]` when no todos exist
@@ -85,7 +94,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 5: Update Todo — `PUT /todos/{id}`
 **Spec**: `specs/update-todo.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Replaces all mutable fields
 - `title` is required; `completed` defaults to `false` if omitted
@@ -109,7 +118,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 6: Update Todo — `PATCH /todos/{id}`
 **Spec**: `specs/update-todo.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Only provided fields are updated; omitted fields stay unchanged
 - At least one recognised field must be provided
@@ -130,7 +139,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 7: Convenience Endpoints — `POST /todos/{id}/complete` and `/incomplete`
 **Spec**: `specs/update-todo.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - `POST /todos/{id}/complete` sets `completed=true`, returns 200 with todo
 - `POST /todos/{id}/incomplete` sets `completed=false`, returns 200 with todo
@@ -148,7 +157,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 8: Delete Todo — `DELETE /todos/{id}`
 **Spec**: `specs/delete-todo.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Hard delete, returns 204 with no body
 - Deleted id is never reused
@@ -164,7 +173,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 9: Filtering, Sorting, Search & Pagination — `GET /todos`
 **Spec**: `specs/list-filtering-sorting-pagination.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - Extends `GET /todos` with query parameters: `completed`, `search`, `sort`, `order`, `page`, `per_page`
 - When any query param is present, response is a pagination envelope `{items, page, per_page, total}`
@@ -197,7 +206,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 10: Error Handling — Cross-Cutting
 **Spec**: `specs/error-handling.md`
-**Status**: NOT DONE
+**Status**: DONE
 
 - All errors use `{"detail": "..."}` format
 - Single error per request, ordered by validation priority: missing → type → blank → length → uniqueness
@@ -232,7 +241,7 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 
 ## Task 12: Integration / End-to-End Tests
 **Spec**: All specs combined
-**Status**: NOT DONE
+**Status**: DONE
 
 - Full CRUD lifecycle test: create → retrieve → update → delete → verify gone
 - Multiple todos with filtering + sorting + pagination
