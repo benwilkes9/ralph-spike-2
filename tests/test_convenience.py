@@ -14,11 +14,14 @@ async def _create_todo(client: AsyncClient, title: str = "Buy milk") -> int:
 
 
 async def test_complete_sets_completed_true(client: AsyncClient) -> None:
-    """POST /todos/{id}/complete sets completed to true."""
+    """POST /todos/{id}/complete sets completed to true and returns full todo."""
     todo_id = await _create_todo(client)
     resp = await client.post(f"/todos/{todo_id}/complete")
     assert resp.status_code == 200
-    assert resp.json()["completed"] is True
+    data = resp.json()
+    assert data["completed"] is True
+    assert data["id"] == todo_id
+    assert data["title"] == "Buy milk"
 
 
 async def test_complete_idempotent(client: AsyncClient) -> None:
@@ -31,12 +34,15 @@ async def test_complete_idempotent(client: AsyncClient) -> None:
 
 
 async def test_incomplete_sets_completed_false(client: AsyncClient) -> None:
-    """POST /todos/{id}/incomplete sets completed to false."""
+    """POST /todos/{id}/incomplete sets completed to false and returns full todo."""
     todo_id = await _create_todo(client)
     await client.post(f"/todos/{todo_id}/complete")
     resp = await client.post(f"/todos/{todo_id}/incomplete")
     assert resp.status_code == 200
-    assert resp.json()["completed"] is False
+    data = resp.json()
+    assert data["completed"] is False
+    assert data["id"] == todo_id
+    assert data["title"] == "Buy milk"
 
 
 async def test_incomplete_idempotent(client: AsyncClient) -> None:

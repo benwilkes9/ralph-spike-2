@@ -214,3 +214,75 @@ async def test_sort_id_asc(client: AsyncClient) -> None:
     data = resp.json()
     ids = [item["id"] for item in data["items"]]
     assert ids == sorted(ids)
+
+
+async def test_pagination_middle_page(client: AsyncClient) -> None:
+    """Page 2 returns the correct subset of items."""
+    # Create 5 todos (ids 1-5, default order desc: 5,4,3,2,1)
+    for i in range(1, 6):
+        await client.post("/todos", json={"title": f"Todo {i}"})
+    resp = await client.get("/todos", params={"per_page": "2", "page": "2"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 5
+    assert data["page"] == 2
+    assert data["per_page"] == 2
+    assert len(data["items"]) == 2
+    # Default sort is id desc, so page 2 should have ids 3 and 2
+    ids = [item["id"] for item in data["items"]]
+    assert ids == [3, 2]
+
+
+async def test_pagination_last_partial_page(client: AsyncClient) -> None:
+    """Last page with fewer items than per_page returns remaining items."""
+    for i in range(1, 6):
+        await client.post("/todos", json={"title": f"Todo {i}"})
+    resp = await client.get("/todos", params={"per_page": "2", "page": "3"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 5
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == 1
+
+
+async def test_per_page_max_boundary(client: AsyncClient) -> None:
+    """per_page=100 (maximum valid value) succeeds."""
+    await _create_todos(client)
+    resp = await client.get("/todos", params={"per_page": "100"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["per_page"] == 100
+    assert len(data["items"]) == 3
+
+
+async def test_combined_search_filter_sort_pagination(client: AsyncClient) -> None:
+    """All query params (search + filter + sort + pagination) work together."""
+    # Create todos with varying completion status
+    await client.post("/todos", json={"title": "Buy apples"})
+    await client.post("/todos", json={"title": "Buy bananas"})
+    await client.post("/todos", json={"title": "Buy cherries"})
+    await client.post("/todos", json={"title": "Sell lemons"})
+    # Mark "Buy apples" and "Buy cherries" as complete
+    resp = await client.get("/todos")
+    for todo in resp.json():
+        if todo["title"] in ("Buy apples", "Buy cherries"):
+            await client.post(f"/todos/{todo['id']}/complete")
+    # Search "buy" + completed=true + sort=title + order=asc + per_page=1 + page=1
+    resp = await client.get(
+        "/todos",
+        params={
+            "search": "buy",
+            "completed": "true",
+            "sort": "title",
+            "order": "asc",
+            "per_page": "1",
+            "page": "1",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2  # Buy apples + Buy cherries
+    assert data["per_page"] == 1
+    assert data["page"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Buy apples"  # alphabetically first

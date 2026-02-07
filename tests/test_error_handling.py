@@ -93,3 +93,20 @@ async def test_validation_order_length_before_uniqueness(client: AsyncClient) ->
     resp = await client.post("/todos", json={"title": long_title})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must be 500 characters or fewer"
+
+
+async def test_validation_order_blank_before_length(client: AsyncClient) -> None:
+    """Whitespace-only title that exceeds 500 chars returns blank error, not length."""
+    resp = await client.post("/todos", json={"title": " " * 501})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+async def test_validation_order_type_before_blank(client: AsyncClient) -> None:
+    """Type error on title takes priority over blank/length checks."""
+    resp = await client.post("/todos", json={"title": 123})
+    assert resp.status_code == 422
+    # Type error should fire before any blank/length validation
+    assert "detail" in resp.json()
+    assert resp.json()["detail"] != "title must not be blank"
+    assert resp.json()["detail"] != "title must be 500 characters or fewer"
