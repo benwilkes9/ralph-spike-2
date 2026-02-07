@@ -1,20 +1,15 @@
 # Implementation Plan
 
-All tasks completed. 89 tests passing, pyright clean, ruff clean.
+All features implemented. 106 tests passing, pyright clean, ruff clean. Tagged `0.0.2`.
 
-## Completed Tasks
+## Status
 
-- **Task 1**: Project dependencies — FastAPI, uvicorn, aiosqlite, httpx, pytest-asyncio
-- **Task 2**: Database layer (`database.py`) and Pydantic models (`models.py`)
-- **Task 3**: `POST /todos` with custom error handling (422 override, title validation, uniqueness)
-- **Task 4**: `GET /todos` and `GET /todos/{id}`
-- **Task 5**: `PUT /todos/{id}` — full replacement
-- **Task 6**: `PATCH /todos/{id}` — partial update
-- **Task 7**: `POST /todos/{id}/complete` and `/incomplete`
-- **Task 8**: `DELETE /todos/{id}`
-- **Task 9**: Query params — filtering (`completed`), search, sorting (`sort`/`order`), pagination (`page`/`per_page`), backward-compatible plain array when no params
-- **Task 10**: Error handling consistency — `StrictBool`/`StrictStr` for type validation, single `{"detail": "..."}` format
-- **Task 11**: README updated with project description, quick start, API endpoints, dev commands
+All spec acceptance criteria have corresponding tests. Full coverage across:
+- CRUD endpoints (POST, GET, PUT, PATCH, DELETE)
+- Convenience endpoints (complete/incomplete)
+- Query params (filter, search, sort, order, page, per_page)
+- Error handling (format, validation order, type mismatches, unknown fields)
+- Edge cases (trim+uniqueness, self-exclusion, deleted ID reuse, non-integer params)
 
 ## Learnings
 
