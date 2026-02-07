@@ -69,3 +69,27 @@ async def test_type_mismatch_completed_string(client: AsyncClient) -> None:
     )
     assert resp.status_code == 422
     assert "detail" in resp.json()
+
+
+async def test_validation_order_missing_before_blank(client: AsyncClient) -> None:
+    """Missing title takes priority over blank (validation order)."""
+    resp = await client.post("/todos", json={})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+async def test_validation_order_blank_before_uniqueness(client: AsyncClient) -> None:
+    """Blank title takes priority over uniqueness check (validation order)."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.post("/todos", json={"title": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+async def test_validation_order_length_before_uniqueness(client: AsyncClient) -> None:
+    """Length exceeded takes priority over uniqueness check (validation order)."""
+    long_title = "x" * 501
+    await client.post("/todos", json={"title": long_title})  # may or may not succeed
+    resp = await client.post("/todos", json={"title": long_title})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"

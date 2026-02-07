@@ -107,3 +107,28 @@ async def test_put_unknown_fields_ignored(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert "priority" not in resp.json()
+
+
+async def test_put_trimmed_duplicate(client: AsyncClient) -> None:
+    """PUT with whitespace-padded title that is duplicate after trimming returns 409."""
+    await _create_todo(client, "First")
+    todo_id = await _create_todo(client, "Second")
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "  First  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
+
+
+async def test_put_own_title_succeeds(client: AsyncClient) -> None:
+    """PUT with same title as current todo succeeds (self-exclusion)."""
+    todo_id = await _create_todo(client, "Buy milk")
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "Buy milk"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Buy milk"
+
+
+async def test_put_own_title_different_case_succeeds(client: AsyncClient) -> None:
+    """PUT with own title in different case succeeds (self-exclusion)."""
+    todo_id = await _create_todo(client, "Buy milk")
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "BUY MILK"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "BUY MILK"

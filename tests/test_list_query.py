@@ -173,3 +173,44 @@ async def test_no_query_params_returns_plain_array(client: AsyncClient) -> None:
     data: list[dict[str, object]] = resp.json()
     assert isinstance(data, list)
     assert len(data) == 3
+
+
+async def test_page_non_integer(client: AsyncClient) -> None:
+    """page=abc returns 422."""
+    resp = await client.get("/todos", params={"page": "abc"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
+
+
+async def test_page_negative(client: AsyncClient) -> None:
+    """page=-1 returns 422."""
+    resp = await client.get("/todos", params={"page": "-1"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
+
+
+async def test_per_page_non_integer(client: AsyncClient) -> None:
+    """per_page=abc returns 422."""
+    resp = await client.get("/todos", params={"per_page": "abc"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
+
+
+async def test_sort_title_desc(client: AsyncClient) -> None:
+    """?sort=title&order=desc sorts alphabetically descending."""
+    await _create_todos(client)
+    resp = await client.get("/todos", params={"sort": "title", "order": "desc"})
+    assert resp.status_code == 200
+    data = resp.json()
+    titles = [item["title"] for item in data["items"]]
+    assert titles == sorted(titles, key=str.lower, reverse=True)
+
+
+async def test_sort_id_asc(client: AsyncClient) -> None:
+    """?sort=id&order=asc sorts by id ascending (oldest first)."""
+    await _create_todos(client)
+    resp = await client.get("/todos", params={"sort": "id", "order": "asc"})
+    assert resp.status_code == 200
+    data = resp.json()
+    ids = [item["id"] for item in data["items"]]
+    assert ids == sorted(ids)

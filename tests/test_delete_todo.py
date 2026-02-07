@@ -41,3 +41,12 @@ async def test_delete_non_integer_id(client: AsyncClient) -> None:
     resp = await client.delete("/todos/abc")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "id must be a positive integer"
+
+
+async def test_deleted_id_never_reused(client: AsyncClient) -> None:
+    """Deleted todo's id is never reused for new todos."""
+    todo_id = await _create_todo(client, "First")
+    await client.delete(f"/todos/{todo_id}")
+    new_resp = await client.post("/todos", json={"title": "Second"})
+    assert new_resp.status_code == 201
+    assert new_resp.json()["id"] > todo_id

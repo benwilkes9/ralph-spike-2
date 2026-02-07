@@ -87,3 +87,11 @@ async def test_create_todo_unknown_fields_ignored(client: AsyncClient) -> None:
     data = resp.json()
     assert "priority" not in data
     assert "foo" not in data
+
+
+async def test_create_todo_trimmed_duplicate(client: AsyncClient) -> None:
+    """Whitespace-padded title is duplicate of existing after trimming (409)."""
+    await client.post("/todos", json={"title": "Buy milk"})
+    resp = await client.post("/todos", json={"title": "  Buy milk  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"

@@ -117,3 +117,39 @@ async def test_patch_trims_title(client: AsyncClient) -> None:
     resp = await client.patch(f"/todos/{todo_id}", json={"title": "  Buy eggs  "})
     assert resp.status_code == 200
     assert resp.json()["title"] == "Buy eggs"
+
+
+async def test_patch_trimmed_duplicate(client: AsyncClient) -> None:
+    """Whitespace-padded title duplicate after trimming returns 409."""
+    await _create_todo(client, "First")
+    todo_id = await _create_todo(client, "Second")
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "  First  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
+
+
+async def test_patch_own_title_succeeds(client: AsyncClient) -> None:
+    """PATCH with same title as current todo succeeds (self-exclusion)."""
+    todo_id = await _create_todo(client, "Buy milk")
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "Buy milk"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Buy milk"
+
+
+async def test_patch_own_title_different_case_succeeds(client: AsyncClient) -> None:
+    """PATCH with own title in different case succeeds (self-exclusion)."""
+    todo_id = await _create_todo(client, "Buy milk")
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "BUY MILK"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "BUY MILK"
+
+
+async def test_patch_unknown_with_valid_fields(client: AsyncClient) -> None:
+    """PATCH with unknown fields alongside valid fields succeeds."""
+    todo_id = await _create_todo(client)
+    resp = await client.patch(
+        f"/todos/{todo_id}", json={"title": "Buy eggs", "junk": 1}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Buy eggs"
+    assert "junk" not in resp.json()
