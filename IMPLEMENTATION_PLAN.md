@@ -1,15 +1,23 @@
 # Implementation Plan
 
-All features implemented. 106 tests passing, pyright clean, ruff clean. Tagged `0.0.2`.
+All features implemented. 112 tests passing, pyright clean, ruff clean. Tagged `0.0.3`.
 
 ## Status
 
-All spec acceptance criteria have corresponding tests. Full coverage across:
+All 47 spec acceptance criteria have corresponding tests. Full coverage across:
 - CRUD endpoints (POST, GET, PUT, PATCH, DELETE)
 - Convenience endpoints (complete/incomplete)
 - Query params (filter, search, sort, order, page, per_page)
 - Error handling (format, validation order, type mismatches, unknown fields)
 - Edge cases (trim+uniqueness, self-exclusion, deleted ID reuse, non-integer params)
+- Validation ordering (missing > type > blank > length > uniqueness)
+- Pagination correctness (middle pages, last partial page, boundary values)
+- Combined query params (search + filter + sort + pagination together)
+- Response shape assertions (convenience endpoints return full todo object)
+
+## Known Concerns (not spec violations)
+
+- SQL LIKE metacharacters (`%`, `_`) in search terms are not escaped — a search for `100%` works as substring match but `_` matches any single character. Spec does not address this.
 
 ## Learnings
 
