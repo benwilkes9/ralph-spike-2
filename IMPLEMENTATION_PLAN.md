@@ -172,25 +172,25 @@ The project is currently a skeleton: `src/ralf_spike_2/__init__.py` has only a d
 - Filtering: `completed=true|false`; omitting returns all; invalid value returns 422
 - Search: case-insensitive substring match on `title`; empty search = no filter
 - Sort: `sort=id` (default) or `sort=title` (case-insensitive alphabetical); `order=asc|desc` (default `desc`)
-- Pagination: `page` >= 1, `per_page` 1–100; beyond last page returns empty `items`
+- Pagination: `page` >= 1 (default `1`), `per_page` 1–100 (default `10`); beyond last page returns empty `items`
 
 **Required tests**:
 - `?completed=true` returns only completed todos
 - `?completed=false` returns only incomplete todos
-- `?completed=invalid` returns 422
+- `?completed=invalid` returns 422 (`"completed must be true or false"`)
 - `?search=buy` returns todos with "buy" in title (case-insensitive)
 - Empty `?search=` returns all todos
 - Search + filter combined works (`?completed=true&search=buy`)
 - `?sort=title&order=asc` sorts alphabetically ascending (case-insensitive)
 - `?sort=id&order=desc` is default behavior
-- `?sort=invalid` returns 422
-- `?order=invalid` returns 422
+- `?sort=invalid` returns 422 (`"sort must be 'id' or 'title'"`)
+- `?order=invalid` returns 422 (`"order must be 'asc' or 'desc'"`)
 - Response with query params includes `{items, page, per_page, total}`
 - `?page=2&per_page=1` paginates correctly
 - Page beyond total returns empty `items` with correct `total`
 - `?per_page=1` returns one item per page
-- `?page=0` returns 422
-- `?per_page=0` or `?per_page=101` returns 422
+- `?page=0` returns 422 (`"page must be a positive integer"`)
+- `?per_page=0` or `?per_page=101` returns 422 (`"per_page must be an integer between 1 and 100"`)
 - No query params returns plain JSON array (backward compatible)
 
 ---
