@@ -4,11 +4,17 @@ version = "0.1.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "aiosqlite>=0.21",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-asyncio>=0.25",
+    "httpx>=0.28",
     "ruff>=0.8",
     "pyright>=1.1",
     "pre-commit>=4.0",
@@ -53,3 +59,4 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+asyncio_mode = "auto"
