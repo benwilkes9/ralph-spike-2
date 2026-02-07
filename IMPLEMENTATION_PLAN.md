@@ -24,8 +24,10 @@
   - In-memory database works for testing
   - Pydantic models validate correctly (accept valid, reject invalid)
 
-## Task 3: Create a Todo — `POST /todos`
+## Task 3: Create a Todo — `POST /todos` (including error handling setup)
 - Create `src/ralf_spike_2/main.py` — FastAPI app instance with the POST endpoint
+- Override FastAPI's default 422 handler for RequestValidationError to return single `{"detail": "..."}` messages
+- Custom exception handlers for 404, 409, 422
 - Create `src/ralf_spike_2/routes.py` (or keep in main.py) — route handlers
 - Implement `POST /todos`:
   - Trim title whitespace before validation
@@ -89,9 +91,11 @@
   - PATCH with no fields → 422 `{"detail": "At least one field must be provided"}`
   - PATCH with only unknown fields → 422
   - Blank/whitespace title → 422
+  - Title > 500 chars → 422 `{"detail": "title must be 500 characters or fewer"}`
   - Duplicate title → 409
   - Non-existent id → 404
   - Non-integer id → 422
+  - Title is trimmed on PATCH update
 
 ## Task 7: Convenience endpoints — `POST /todos/{id}/complete` and `/incomplete`
 - `POST /todos/{id}/complete` — sets completed to true, idempotent
@@ -128,26 +132,24 @@
 - **Tests:**
   - `?completed=true` returns only completed todos
   - `?completed=false` returns only incomplete todos
-  - `?completed=invalid` → 422
+  - `?completed=invalid` → 422 `{"detail": "completed must be true or false"}`
   - `?search=buy` returns todos with "buy" in title (case-insensitive)
   - Empty search string returns all
   - Search + filter combined
   - `?sort=title&order=asc` sorts alphabetically ascending (case-insensitive)
   - `?sort=id&order=desc` is default behavior
-  - Invalid sort value → 422
-  - Invalid order value → 422
+  - Invalid sort value → 422 `{"detail": "sort must be 'id' or 'title'"}`
+  - Invalid order value → 422 `{"detail": "order must be 'asc' or 'desc'"}`
   - Paginated response includes `items`, `page`, `per_page`, `total`
   - Page beyond total → empty items, correct total
   - `per_page=1` returns one item
-  - `page=0` → 422
-  - `per_page=0` → 422
-  - `per_page=101` → 422
+  - `page=0` → 422 `{"detail": "page must be a positive integer"}`
+  - `per_page=0` → 422 `{"detail": "per_page must be an integer between 1 and 100"}`
+  - `per_page=101` → 422 `{"detail": "per_page must be an integer between 1 and 100"}`
   - No query params → plain JSON array (backward compatible)
 
-## Task 10: Error handling consistency
-- All error responses use `{"detail": "..."}` format
-- Override FastAPI's default 422 handler for RequestValidationError to return single `{"detail": "..."}` messages
-- Custom exception handlers for 404, 409, 422
+## Task 10: Error handling consistency verification
+- Verify all error responses use `{"detail": "..."}` format (exception handlers set up in Task 3)
 - Validation order: missing → type/format → blank → length → uniqueness
 - Type mismatches on recognised fields → 422
 - **Tests:**
