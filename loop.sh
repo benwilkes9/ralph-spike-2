@@ -161,7 +161,8 @@ fi
 # ─── Header ───────────────────────────────────────────────────────
 
 echo -e "${BBLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RST}"
-echo -e "  ${DIM}Mode${RST}     ${MODE_COLOR}${MODE_LABEL,,}${RST}"
+MODE_LOWER=$(echo "$MODE_LABEL" | tr '[:upper:]' '[:lower:]')
+echo -e "  ${DIM}Mode${RST}     ${MODE_COLOR}${MODE_LOWER}${RST}"
 echo -e "  ${DIM}Prompt${RST}   ${WHITE}$PROMPT_FILE${RST}"
 echo -e "  ${DIM}Branch${RST}   ${BCYAN}$CURRENT_BRANCH${RST}"
 [ $MAX_ITERATIONS -gt 0 ] && echo -e "  ${DIM}Max${RST}      ${WHITE}$MAX_ITERATIONS iterations${RST}"
