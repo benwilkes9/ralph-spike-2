@@ -4,8 +4,8 @@ set -euo pipefail
 # Examples:
 #   ./loop.sh              # Build loop, unlimited iterations
 #   ./loop.sh 20           # Build loop, max 20 iterations
-#   ./loop.sh plan         # Plan mode, 5 iterations (default)
-#   ./loop.sh plan 3       # Plan mode, max 3 iterations
+#   ./loop.sh plan         # Plan mode, 3 iterations (default)
+#   ./loop.sh plan 5       # Plan mode, max 5 iterations
 
 CURRENT_BRANCH=$(git branch --show-current)
 LOG_DIR="logs"
@@ -140,7 +140,7 @@ if [ "${1:-}" = "plan" ]; then
     MODE_LABEL="PLAN"
     MODE_COLOR="$BCYAN"
     PROMPT_FILE="PROMPT_plan.md"
-    MAX_ITERATIONS=${2:-5}
+    MAX_ITERATIONS=${2:-3}
 elif [[ "${1:-}" =~ ^[0-9]+$ ]]; then
     MODE_LABEL="BUILD"
     MODE_COLOR="$BGREEN"

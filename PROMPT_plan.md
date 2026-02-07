@@ -9,6 +9,8 @@
 
 IMPORTANT: Plan only. Do NOT implement anything. Do NOT assume functionality is missing; confirm with code search first. Treat `src/ralf_spike_2` as the project's package root.
 
+CONVERGENCE: If IMPLEMENTATION_PLAN.md already exists and covers all specs, verify correctness but do NOT rewrite or restyle it. Only commit if you found a factual error (wrong status code, missing task, incorrect field name) or a missing task. Do NOT commit formatting-only, rewording-only, or restructuring changes — the plan does not need to be perfect prose, it needs to be correct and complete.
+
 ULTIMATE GOAL: We want to achieve a fully working FastAPI REST API that performs CRUD operations on a SQLite-backed todo list, with filtering, sorting, search, and pagination — all matching the specs in `specs/`. Consider missing elements and plan accordingly. If an element is missing, search first to confirm it doesn't exist, then if needed author the specification at specs/FILENAME.md. If you create a new element then document the plan to implement it in @IMPLEMENTATION_PLAN.md using a subagent.
 
-COMMIT: When you have made changes to any files (IMPLEMENTATION_PLAN.md, specs, etc.), `git add -A` then `git commit` with a message describing the changes, then `git push`. If nothing changed, do not create an empty commit.
+COMMIT: When you have made changes to any files (IMPLEMENTATION_PLAN.md, specs, etc.), `git add -A` then `git commit` with a message describing the changes, then `git push`. If nothing changed, do not create an empty commit. If the only changes you would make are cosmetic (rewording, reformatting, reordering), discard them (`git checkout -- .`) and do not commit.
