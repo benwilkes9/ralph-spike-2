@@ -79,3 +79,22 @@ async def test_incomplete_non_integer_id(client: AsyncClient) -> None:
     resp = await client.post("/todos/abc/incomplete")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "id must be a positive integer"
+
+
+async def test_complete_with_body_succeeds(client: AsyncClient) -> None:
+    """POST /todos/{id}/complete tolerates a request body without error."""
+    todo_id = await _create_todo(client)
+    resp = await client.post(f"/todos/{todo_id}/complete", json={"title": "ignored"})
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is True
+    assert resp.json()["title"] == "Buy milk"
+
+
+async def test_incomplete_with_body_succeeds(client: AsyncClient) -> None:
+    """POST /todos/{id}/incomplete tolerates a request body without error."""
+    todo_id = await _create_todo(client)
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.post(f"/todos/{todo_id}/incomplete", json={"completed": True})
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is False
+    assert resp.json()["title"] == "Buy milk"

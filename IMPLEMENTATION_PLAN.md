@@ -1,6 +1,6 @@
 # Implementation Plan
 
-All features implemented. 112 tests passing, pyright clean, ruff clean. Tagged `0.0.3`.
+All features implemented. 114 tests passing, pyright clean, ruff clean. Tagged `0.0.4`.
 
 ## Status
 
@@ -14,6 +14,7 @@ All 47 spec acceptance criteria have corresponding tests. Full coverage across:
 - Pagination correctness (middle pages, last partial page, boundary values)
 - Combined query params (search + filter + sort + pagination together)
 - Response shape assertions (convenience endpoints return full todo object)
+- Convenience endpoints tolerate request bodies without error
 
 ## Known Concerns (not spec violations)
 
