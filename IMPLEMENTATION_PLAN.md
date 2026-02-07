@@ -1,6 +1,6 @@
 # Implementation Plan — Todo CRUD REST API
 
-## Status: In Progress - Tasks 1-10, 12 Complete
+## Status: Complete - All Tasks Done
 
 ## Summary of Implementation
 
@@ -11,7 +11,7 @@ The Todo CRUD REST API has been successfully implemented with the following key 
 - **Error Handling**: Custom HTTPError exception class with FastAPI exception handler for consistent `{"detail": string}` error format
 - **Initialization**: FastAPI lifespan context manager for DB initialization
 
-All core functionality (Tasks 1-10) and integration tests (Task 12) have been implemented and are passing.
+All tasks (1-12) have been implemented and are passing. Task 11 (README & Documentation) was the final piece.
 
 ---
 
@@ -227,13 +227,14 @@ All core functionality (Tasks 1-10) and integration tests (Task 12) have been im
 
 ## Task 11: Update README & Documentation
 **Spec**: N/A (developer experience)
-**Status**: NOT DONE
+**Status**: DONE
 
-- Add project description to README (what the app is)
-- Document how to run the API server (e.g., `uv run uvicorn ralf_spike_2.app:app`)
-- Document API endpoints summary
-- Document environment setup steps
-- Ensure a new developer can clone, follow README, and have the app running
+- Added project description to README
+- Documented how to run the API server (`uv run uvicorn ralf_spike_2.app:app`)
+- Documented all API endpoints with request/response examples
+- Documented query parameters for filtering, sorting, search, and pagination
+- Documented error handling format
+- Documented environment setup steps
 
 **Required tests**: N/A (documentation task)
 
