@@ -2,7 +2,7 @@
 
 - Package manager: `uv`
 - Install deps: `uv sync --all-extras`
-- Run the app: `uv run uvicorn ralf_spike_2.main:app`
+- Run the app: `uv run uvicorn ralf_spike_2.app:app`
 - Source code: `src/ralf_spike_2/`
 - Tests: `tests/`
 - Specs: `specs/`
