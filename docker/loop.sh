@@ -28,7 +28,7 @@ WHITE='\033[0;37m'  ; BWHITE='\033[1;37m'
 #   "assistant" → tool calls (· Read ...) and subagent spawns (▶ Explore ...)
 #   "user"      → subagent completions (✓ duration, tool calls, tokens)
 # Everything else is ignored. The iteration summary (context + cost) is
-# computed post-hoc in run_claude() since jq can't track state across lines.
+# computed post-hoc in run_claude() since jq cannot track state across lines.
 JQ_FILTER='
   def green: "\u001b[32m" + . + "\u001b[0m";
   def red:   "\u001b[1;31m" + . + "\u001b[0m";
@@ -63,7 +63,7 @@ JQ_FILTER='
     ) // empty
 
   # ── user messages: subagent completions ──
-  # Only Task tool results have .totalTokens (regular tools like Read/Bash don't).
+  # Only Task tool results have .totalTokens (regular tools like Read/Bash do not).
   # totalTokens = input + cache_creation + cache_read + output across all subagent turns.
   elif .type == "user" then
     (if .tool_use_result.totalTokens then

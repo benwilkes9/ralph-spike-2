@@ -19,9 +19,14 @@ git config --global user.email "noreply@anthropic.com"
 git config --global commit.gpgsign false
 
 # ─── Clone repo ──────────────────────────────────────────────────
+# /workspace/repo may already exist as a mount point (e.g. logs volume),
+# so use git init + fetch instead of clone.
 CLONE_URL="https://x-access-token:${GITHUB_PAT}@github.com/${REPO}.git"
-git clone --branch "$BRANCH" "$CLONE_URL" /workspace/repo
 cd /workspace/repo
+git init
+git remote add origin "$CLONE_URL"
+git fetch origin "$BRANCH"
+git checkout -b "$BRANCH" "origin/$BRANCH"
 
 # ─── Install project dependencies ───────────────────────────────
 uv sync --all-extras
