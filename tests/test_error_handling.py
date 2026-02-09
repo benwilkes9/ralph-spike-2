@@ -1380,3 +1380,43 @@ async def test_create_title_501_after_trim(client: AsyncClient) -> None:
     resp = await client.post("/todos", json={"title": title})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must be 500 characters or fewer"
+
+
+# --- POST /todos/{id} returns 405 ---
+
+
+@pytest.mark.asyncio
+async def test_post_single_todo_returns_405(client: AsyncClient) -> None:
+    """POST /todos/{id} (not complete/incomplete) returns 405."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.post(f"/todos/{todo_id}")
+    assert resp.status_code == 405
+
+
+# --- 405 response body format ---
+
+
+@pytest.mark.asyncio
+async def test_405_response_has_detail_key(client: AsyncClient) -> None:
+    """405 responses use the standard {"detail": "..."} error format."""
+    resp = await client.put("/todos", json={"title": "Test"})
+    assert resp.status_code == 405
+    data = resp.json()
+    assert set(data.keys()) == {"detail"}
+    assert isinstance(data["detail"], str)
+
+
+# --- PUT with only completed:null (no title) ---
+
+
+@pytest.mark.asyncio
+async def test_put_completed_null_only_returns_title_required(
+    client: AsyncClient,
+) -> None:
+    """PUT with only completed:null returns title is required (pri 1)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"completed": None})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"

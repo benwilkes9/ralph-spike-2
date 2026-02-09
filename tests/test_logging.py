@@ -471,3 +471,43 @@ async def test_log_entry_for_405_response(
     assert entry["status_code"] == 405
     assert entry["method"] == "GET"
     assert entry["path"] == "/todos/1/complete"
+
+
+# --- Log entry field types per spec ---
+
+
+@pytest.mark.asyncio
+async def test_log_entry_field_types(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Log entry fields have correct types per spec."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        await client.get("/todos")
+    entry = await _get_log_entry(caplog)
+    assert isinstance(entry["method"], str)
+    assert isinstance(entry["path"], str)
+    assert isinstance(entry["query_string"], str)
+    assert isinstance(entry["status_code"], int)
+    assert isinstance(entry["duration_ms"], int | float)
+
+
+# --- Log entry has exactly the 5 spec-defined fields ---
+
+
+@pytest.mark.asyncio
+async def test_log_entry_has_exactly_five_fields(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Log entry contains exactly the 5 spec-defined fields."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        await client.get("/todos")
+    entry = await _get_log_entry(caplog)
+    assert set(entry.keys()) == {
+        "method",
+        "path",
+        "query_string",
+        "status_code",
+        "duration_ms",
+    }
