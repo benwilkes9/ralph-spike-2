@@ -32,9 +32,13 @@ fi
 # ─── Build and run ───────────────────────────────────────────────
 DOCKER_BUILDKIT=1 docker build -t claude-loop -f docker/Dockerfile .
 
+LOCAL_LOGS="$(pwd)/logs"
+mkdir -p "$LOCAL_LOGS"
+
 docker run --rm -it \
     -e ANTHROPIC_API_KEY \
     -e GITHUB_PAT \
     -e REPO="$REPO" \
     -e BRANCH="$BRANCH" \
+    -v "$LOCAL_LOGS:/workspace/repo/logs" \
     claude-loop "$@"
