@@ -340,7 +340,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 11 -- README and Documentation Updates
 
-- [ ] **Update README.md with project description, setup, and run instructions**
+- [x] **Update README.md with project description, setup, and run instructions**
 
 **Description:** Update the existing `README.md` to include:
 - Project description (Todo CRUD API built with FastAPI and SQLite)
