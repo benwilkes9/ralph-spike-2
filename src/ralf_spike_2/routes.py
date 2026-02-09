@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -159,3 +159,14 @@ async def mark_todo_incomplete(id: str, db: DbSession) -> TodoResponse:
     await db.commit()
     await db.refresh(todo)
     return TodoResponse.model_validate(todo)
+
+
+@router.delete("/todos/{id}", status_code=204)
+async def delete_todo(id: str, db: DbSession) -> Response:
+    """Permanently delete a todo by id."""
+    todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+
+    await db.delete(todo)
+    await db.commit()
+    return Response(status_code=204)

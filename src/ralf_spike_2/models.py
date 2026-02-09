@@ -18,4 +18,7 @@ class TodoModel(Base):
     title_lower: Mapped[str] = mapped_column(String(500), nullable=False)
     completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    __table_args__ = (Index("ix_todos_title_lower", "title_lower", unique=True),)
+    __table_args__ = (
+        Index("ix_todos_title_lower", "title_lower", unique=True),
+        {"sqlite_autoincrement": True},
+    )

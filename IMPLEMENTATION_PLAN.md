@@ -257,7 +257,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 9 -- Delete Todo Endpoint
 
-- [ ] **Implement `DELETE /todos/{id}`**
+- [x] **Implement `DELETE /todos/{id}`**
 
 **Description:** Add to the todos router:
 - Validate path `id` with `validate_path_id()`.
