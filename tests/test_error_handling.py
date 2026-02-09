@@ -275,6 +275,120 @@ async def test_patch_completed_type_before_title_blank(
     assert resp.json()["detail"] == "completed must be a boolean"
 
 
+@pytest.mark.asyncio
+async def test_put_completed_type_before_title_length(
+    client: AsyncClient,
+) -> None:
+    """PUT: completed type error (pri 2) before title too long (pri 4)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "a" * 501, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_type_before_title_length(
+    client: AsyncClient,
+) -> None:
+    """PATCH: completed type error (pri 2) before title too long (pri 4)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "a" * 501, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_put_title_null_before_completed_type_error(
+    client: AsyncClient,
+) -> None:
+    """PUT: title:null (pri 1) before completed type error (pri 2)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": None, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_null_and_completed_type_error(
+    client: AsyncClient,
+) -> None:
+    """PATCH: title:null type error before completed type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": None, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_put_blank_title_with_valid_completed(
+    client: AsyncClient,
+) -> None:
+    """PUT: blank title (pri 3) reported when completed is valid bool."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "   ", "completed": True},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_patch_blank_title_with_valid_completed(
+    client: AsyncClient,
+) -> None:
+    """PATCH: blank title (pri 3) reported when completed is valid."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "   ", "completed": True},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_put_length_before_uniqueness(client: AsyncClient) -> None:
+    """PUT: title too long (pri 4) before uniqueness (pri 5)."""
+    await client.post("/todos", json={"title": "a" * 500})
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "a" * 501})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
+
+
+@pytest.mark.asyncio
+async def test_patch_length_before_uniqueness(
+    client: AsyncClient,
+) -> None:
+    """PATCH: title too long (pri 4) before uniqueness (pri 5)."""
+    await client.post("/todos", json={"title": "a" * 500})
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "a" * 501})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
+
+
 # --- Invalid JSON body handling ---
 
 
@@ -569,3 +683,103 @@ async def test_incomplete_very_large_id(client: AsyncClient) -> None:
     resp = await client.post("/todos/99999999999999999999/incomplete")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- Error response body shape: only "detail" key ---
+
+
+@pytest.mark.asyncio
+async def test_422_error_has_only_detail_key(client: AsyncClient) -> None:
+    """422 error response body has exactly one key: detail."""
+    resp = await client.post("/todos", json={})
+    assert resp.status_code == 422
+    assert set(resp.json().keys()) == {"detail"}
+
+
+@pytest.mark.asyncio
+async def test_404_error_has_only_detail_key(client: AsyncClient) -> None:
+    """404 error response body has exactly one key: detail."""
+    resp = await client.get("/todos/9999")
+    assert resp.status_code == 404
+    assert set(resp.json().keys()) == {"detail"}
+
+
+@pytest.mark.asyncio
+async def test_409_error_has_only_detail_key(client: AsyncClient) -> None:
+    """409 error response body has exactly one key: detail."""
+    await client.post("/todos", json={"title": "Dup"})
+    resp = await client.post("/todos", json={"title": "Dup"})
+    assert resp.status_code == 409
+    assert set(resp.json().keys()) == {"detail"}
+
+
+# --- Missing zero/negative ID tests ---
+
+
+@pytest.mark.asyncio
+async def test_put_zero_id(client: AsyncClient) -> None:
+    """PUT /todos/0 returns 422."""
+    resp = await client.put("/todos/0", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_patch_zero_id(client: AsyncClient) -> None:
+    """PATCH /todos/0 returns 422."""
+    resp = await client.patch("/todos/0", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_patch_negative_id(client: AsyncClient) -> None:
+    """PATCH /todos/-1 returns 422."""
+    resp = await client.patch("/todos/-1", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_zero_id(client: AsyncClient) -> None:
+    """POST /todos/0/complete returns 422."""
+    resp = await client.post("/todos/0/complete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_zero_id(client: AsyncClient) -> None:
+    """DELETE /todos/0 returns 422."""
+    resp = await client.delete("/todos/0")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_negative_id(client: AsyncClient) -> None:
+    """DELETE /todos/-1 returns 422."""
+    resp = await client.delete("/todos/-1")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- Unknown fields only on POST/PUT ---
+
+
+@pytest.mark.asyncio
+async def test_create_only_unknown_fields(client: AsyncClient) -> None:
+    """POST /todos with only unknown fields returns 422."""
+    resp = await client.post("/todos", json={"foo": "bar", "baz": 123})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+@pytest.mark.asyncio
+async def test_put_only_unknown_fields(client: AsyncClient) -> None:
+    """PUT with only unknown fields returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"foo": "bar"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"

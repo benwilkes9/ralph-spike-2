@@ -784,3 +784,83 @@ async def test_patch_title_list(client: AsyncClient) -> None:
     resp = await client.patch(f"/todos/{todo_id}", json={"title": []})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must be a string"
+
+
+# --- Case-insensitive self-exclusion on title uniqueness ---
+
+
+@pytest.mark.asyncio
+async def test_put_same_title_different_case_self(
+    client: AsyncClient,
+) -> None:
+    """PUT: changing title to case-different version of own title succeeds."""
+    r = await client.post("/todos", json={"title": "My Task"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "MY TASK"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "MY TASK"
+
+
+@pytest.mark.asyncio
+async def test_patch_same_title_different_case_self(
+    client: AsyncClient,
+) -> None:
+    """PATCH: changing title to case-different version of own title succeeds."""
+    r = await client.post("/todos", json={"title": "My Task"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "MY TASK"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "MY TASK"
+
+
+# --- Trim-before-length on PUT/PATCH ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_500_after_trim(client: AsyncClient) -> None:
+    """PUT: title >500 before trim but exactly 500 after trim is accepted."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    title_500 = "a" * 500
+    resp = await client.put(f"/todos/{todo_id}", json={"title": f"  {title_500}  "})
+    assert resp.status_code == 200
+    assert len(resp.json()["title"]) == 500
+
+
+@pytest.mark.asyncio
+async def test_patch_title_500_after_trim(client: AsyncClient) -> None:
+    """PATCH: title >500 before trim but exactly 500 after trim is accepted."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    title_500 = "b" * 500
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": f"  {title_500}  "})
+    assert resp.status_code == 200
+    assert len(resp.json()["title"]) == 500
+
+
+# --- PATCH idempotent completed=false ---
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_false_on_already_false(
+    client: AsyncClient,
+) -> None:
+    """PATCH: setting completed=false on already-false todo succeeds."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": False})
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is False
+
+
+# --- POST with completed: false ignored ---
+
+
+@pytest.mark.asyncio
+async def test_create_todo_completed_false_ignored(
+    client: AsyncClient,
+) -> None:
+    """POST with completed: false is ignored (default is false anyway)."""
+    resp = await client.post("/todos", json={"title": "Test CF", "completed": False})
+    assert resp.status_code == 201
+    assert resp.json()["completed"] is False

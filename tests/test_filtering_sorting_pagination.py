@@ -975,3 +975,17 @@ async def test_envelope_has_exactly_four_keys(client: AsyncClient) -> None:
     resp = await client.get("/todos", params={"page": "1"})
     data = resp.json()
     assert set(data.keys()) == {"items", "page", "per_page", "total"}
+
+
+# --- Search with whitespace-only string ---
+
+
+@pytest.mark.asyncio
+async def test_search_whitespace_only(client: AsyncClient) -> None:
+    """Search with whitespace-only string searches for literal space."""
+    await client.post("/todos", json={"title": "hello world"})
+    await client.post("/todos", json={"title": "nospaces"})
+    resp = await client.get("/todos", params={"search": " "})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "hello world"

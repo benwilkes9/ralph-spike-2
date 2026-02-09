@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 261 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 287 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -16,6 +16,19 @@ All CRUD endpoints (1.x–6.x), error handling (5.x), filtering/sorting/paginati
 - **Why ASGI middleware**: Wraps the entire app including exception handlers, so even error responses are logged. `BaseHTTPMiddleware` would also work but raw ASGI is more lightweight.
 - **pyright note**: `record.msg` is typed as `str` but we pass dicts at runtime; use `cast("dict[str, Any]", msg)` after `isinstance` check.
 - **Total: 23 new tests**, bringing count from 238 to 261.
+
+## Spec Compliance Test Hardening (0.0.15)
+
+- **Audit-driven**: Deep spec compliance audit identified 26 test gaps across validation ordering, edge cases, and response shape.
+- **Cross-field validation ordering**: Added tests for priority 2 (type error) before priority 4 (length) on both PUT and PATCH. Added tests for priority 1 (missing) before priority 2 on PUT with `title:null + completed:"yes"`. Added PATCH `title:null + completed:"yes"` (both type errors, title first). Added blank title with valid completed (priority 3 fires when priority 2 passes).
+- **Case-insensitive self-exclusion**: Tests for PUT/PATCH updating a todo's title to a case-different version of its own title (e.g., "My Task" → "MY TASK") — must succeed via self-exclusion.
+- **Trim-before-length on update**: Tests for PUT/PATCH where title exceeds 500 chars before trim but exactly 500 after trim — must be accepted. Previously only tested on POST.
+- **Error response body shape**: Tests verifying 422/404/409 responses have ONLY the `detail` key (no extra keys leaking from FastAPI).
+- **Missing ID validation**: Added zero/negative ID tests for PUT, PATCH, complete, delete endpoints (previously only some endpoints covered).
+- **Unknown-fields-only**: Tests for POST/PUT with only unknown fields returning the correct validation error.
+- **Length-before-uniqueness**: Tests for PUT/PATCH validation priority 4 before priority 5.
+- **Misc edge cases**: PATCH `completed=false` on already-false todo (idempotent), POST with `completed: false` ignored, search with whitespace-only string.
+- **Total: 26 new tests**, bringing count from 261 to 287.
 
 ## Architecture Notes
 
