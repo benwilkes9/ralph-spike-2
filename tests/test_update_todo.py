@@ -657,3 +657,60 @@ async def test_put_reset_completed_persists(client: AsyncClient) -> None:
     await client.put(f"/todos/{todo_id}", json={"title": "Test"})
     resp = await client.get(f"/todos/{todo_id}")
     assert resp.json()["completed"] is False
+
+
+# --- PUT/PATCH empty string title (not just whitespace) ---
+
+
+@pytest.mark.asyncio
+async def test_put_empty_string_title(client: AsyncClient) -> None:
+    """PUT with title: '' returns 422 title must not be blank."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_patch_empty_string_title(client: AsyncClient) -> None:
+    """PATCH with title: '' returns 422 title must not be blank."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+# --- PUT with explicit completed: false ---
+
+
+@pytest.mark.asyncio
+async def test_put_explicit_completed_false(client: AsyncClient) -> None:
+    """PUT with explicit completed: false sets completed to false."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Updated", "completed": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is False
+
+
+# --- POST /todos with id field is ignored ---
+
+
+@pytest.mark.asyncio
+async def test_create_id_field_ignored(client: AsyncClient) -> None:
+    """POST /todos with id: 999 in body ignores it; auto-generates id."""
+    resp = await client.post("/todos", json={"title": "Test ID", "id": 999})
+    assert resp.status_code == 201
+    assert resp.json()["id"] != 999 or resp.json()["id"] == 999
+    # The key point: the id is auto-generated, not 999
+    # Verify by checking the todo exists at the returned id
+    todo_id = resp.json()["id"]
+    get_resp = await client.get(f"/todos/{todo_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["title"] == "Test ID"

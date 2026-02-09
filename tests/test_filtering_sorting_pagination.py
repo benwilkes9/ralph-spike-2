@@ -814,3 +814,75 @@ async def test_paginated_list_item_shape(client: AsyncClient) -> None:
     data = resp.json()
     for item in data["items"]:
         assert set(item.keys()) == {"id", "title", "completed"}
+
+
+# --- Empty string query parameter edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_sort_empty_string(client: AsyncClient) -> None:
+    """GET /todos?sort= (empty) returns 422."""
+    resp = await client.get("/todos", params={"sort": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "sort must be 'id' or 'title'"
+
+
+@pytest.mark.asyncio
+async def test_order_empty_string(client: AsyncClient) -> None:
+    """GET /todos?order= (empty) returns 422."""
+    resp = await client.get("/todos", params={"order": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "order must be 'asc' or 'desc'"
+
+
+@pytest.mark.asyncio
+async def test_page_empty_string(client: AsyncClient) -> None:
+    """GET /todos?page= (empty) returns 422."""
+    resp = await client.get("/todos", params={"page": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_per_page_empty_string(client: AsyncClient) -> None:
+    """GET /todos?per_page= (empty) returns 422."""
+    resp = await client.get("/todos", params={"per_page": ""})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == ("per_page must be an integer between 1 and 100")
+
+
+# --- Substring match in the middle of a title ---
+
+
+@pytest.mark.asyncio
+async def test_search_substring_middle(client: AsyncClient) -> None:
+    """Search matches substring in the middle of a title."""
+    await client.post("/todos", json={"title": "Buy milk please"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    resp = await client.get("/todos", params={"search": "milk"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Buy milk please"
+
+
+# --- completed filter additional case sensitivity ---
+
+
+@pytest.mark.asyncio
+async def test_filter_completed_false_uppercase(
+    client: AsyncClient,
+) -> None:
+    """GET /todos?completed=FALSE returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"completed": "FALSE"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
+
+
+@pytest.mark.asyncio
+async def test_filter_completed_false_title_case(
+    client: AsyncClient,
+) -> None:
+    """GET /todos?completed=False returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"completed": "False"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
