@@ -863,3 +863,122 @@ async def test_create_todo_completed_false_ignored(
     resp = await client.post("/todos", json={"title": "Test CF", "completed": False})
     assert resp.status_code == 201
     assert resp.json()["completed"] is False
+
+
+# --- PATCH valid title + invalid completed ---
+
+
+@pytest.mark.asyncio
+async def test_patch_valid_title_invalid_completed_string(
+    client: AsyncClient,
+) -> None:
+    """PATCH: valid title + completed:'yes' returns completed type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "Valid Title", "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_patch_valid_title_invalid_completed_int(
+    client: AsyncClient,
+) -> None:
+    """PATCH: valid title + completed:1 returns completed type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "Valid Title", "completed": 1},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- PATCH invalid title + valid completed ---
+
+
+@pytest.mark.asyncio
+async def test_patch_invalid_title_valid_completed(
+    client: AsyncClient,
+) -> None:
+    """PATCH: title:123 + completed:true returns title type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": 123, "completed": True},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- PUT title:null + valid completed ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_null_valid_completed(
+    client: AsyncClient,
+) -> None:
+    """PUT: title:null + completed:true returns 'title is required'."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": None, "completed": True},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+# --- PATCH completed-only skips uniqueness check ---
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_only_no_uniqueness_check(
+    client: AsyncClient,
+) -> None:
+    """PATCH: completing a todo skips uniqueness even if title matches another."""
+    await client.post("/todos", json={"title": "Hello"})
+    r = await client.post("/todos", json={"title": "World"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": True})
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is True
+    assert resp.json()["title"] == "World"
+
+
+# --- Create with completed: null ignored ---
+
+
+@pytest.mark.asyncio
+async def test_create_completed_null_ignored(
+    client: AsyncClient,
+) -> None:
+    """POST: completed:null is ignored on create, defaults to false."""
+    resp = await client.post(
+        "/todos", json={"title": "Null Completed", "completed": None}
+    )
+    assert resp.status_code == 201
+    assert resp.json()["completed"] is False
+
+
+# --- PATCH empty string title + valid completed ---
+
+
+@pytest.mark.asyncio
+async def test_patch_empty_title_valid_completed(
+    client: AsyncClient,
+) -> None:
+    """PATCH: empty string title + valid completed returns blank error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "", "completed": True},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"

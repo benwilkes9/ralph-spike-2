@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 304 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 329 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -42,6 +42,22 @@ All CRUD endpoints (1.x–6.x), error handling (5.x), filtering/sorting/paginati
 - **Paginated completed is bool (1)**: Verifies `completed` in paginated list items is `bool`, not SQLite int 0/1.
 - **Leading zeros/plus in page/per_page (3)**: Verifies `page=01`, `page=+1`, `per_page=010` are accepted (Python `int()` behavior).
 - **Total: 17 new tests**, bringing count from 287 to 304.
+
+## Edge Case & Coverage Hardening (0.0.17)
+
+- **Audit-driven**: Deep code-path audit identified 25 untested edge cases across cross-field validation, HTTP method restrictions, body type validation, and query param precedence.
+- **Cross-field PATCH/PUT combos (4)**: Valid title + invalid completed (string/int), invalid title + valid completed, PUT title:null + valid completed. Verifies type error priority is correct across all field combinations.
+- **HTTP 405 on collection endpoint (3)**: PUT/PATCH/DELETE on `/todos` collection returns 405 — prevents accidental mass operations.
+- **Non-dict JSON body types (4)**: POST/PUT/PATCH with JSON number (`42`) and boolean (`true`/`false`) bodies return "Request body must be a JSON object".
+- **Query param validation precedence (3)**: Completed error before sort error, sort before order, page before per_page — matches implementation validation order.
+- **Unknown query param envelope format (1)**: `GET /todos?foo=bar` returns paginated envelope (not plain array) because `request.query_params` is truthy.
+- **Title float type (3)**: POST/PUT/PATCH with `title: 3.14` returns "title must be a string" — distinct JSON type from integer.
+- **Completed float/list/object types (3)**: PUT with `completed: 3.14` or `{}`, PATCH with `completed: []` return "completed must be a boolean".
+- **Path ID leading zeros (1)**: `GET /todos/01` resolves correctly — Python `int("01")` returns 1.
+- **Create completed:null ignored (1)**: POST with `completed: null` succeeds with `completed: false` — completed is ignored on create.
+- **PATCH completed-only skips uniqueness (1)**: Patching only completed succeeds even when another todo's title matches.
+- **PATCH empty title + valid completed (1)**: Empty string title returns blank error even with valid completed.
+- **Total: 25 new tests**, bringing count from 304 to 329.
 
 ## Architecture Notes
 

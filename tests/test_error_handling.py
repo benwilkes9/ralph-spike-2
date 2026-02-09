@@ -946,3 +946,227 @@ async def test_create_trim_length_uniqueness_combined(
     resp = await client.post("/todos", json={"title": f"  {'A' * 500}  "})
     assert resp.status_code == 409
     assert resp.json()["detail"] == ("A todo with this title already exists")
+
+
+# --- 405 Method Not Allowed on collection endpoint ---
+
+
+@pytest.mark.asyncio
+async def test_put_todos_collection_returns_405(
+    client: AsyncClient,
+) -> None:
+    """PUT /todos (collection) returns 405."""
+    resp = await client.put("/todos", json={"title": "Test"})
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_patch_todos_collection_returns_405(
+    client: AsyncClient,
+) -> None:
+    """PATCH /todos (collection) returns 405."""
+    resp = await client.patch("/todos", json={"title": "Test"})
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_delete_todos_collection_returns_405(
+    client: AsyncClient,
+) -> None:
+    """DELETE /todos (collection) returns 405."""
+    resp = await client.delete("/todos")
+    assert resp.status_code == 405
+
+
+# --- Non-dict JSON body types (number, boolean) ---
+
+
+@pytest.mark.asyncio
+async def test_create_json_number_body(client: AsyncClient) -> None:
+    """POST /todos with JSON number body returns 422."""
+    resp = await client.post(
+        "/todos",
+        content=b"42",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_create_json_boolean_body(client: AsyncClient) -> None:
+    """POST /todos with JSON boolean body returns 422."""
+    resp = await client.post(
+        "/todos",
+        content=b"true",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_put_json_number_body(client: AsyncClient) -> None:
+    """PUT with JSON number body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        content=b"42",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_patch_json_boolean_body(client: AsyncClient) -> None:
+    """PATCH with JSON boolean body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        content=b"false",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+# --- Validation precedence: multiple invalid query params ---
+
+
+@pytest.mark.asyncio
+async def test_completed_error_before_sort_error(
+    client: AsyncClient,
+) -> None:
+    """Invalid completed checked before invalid sort."""
+    resp = await client.get("/todos", params={"completed": "yes", "sort": "invalid"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
+
+
+@pytest.mark.asyncio
+async def test_sort_error_before_order_error(
+    client: AsyncClient,
+) -> None:
+    """Invalid sort checked before invalid order."""
+    resp = await client.get("/todos", params={"sort": "invalid", "order": "invalid"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "sort must be 'id' or 'title'"
+
+
+@pytest.mark.asyncio
+async def test_page_error_before_per_page_error(
+    client: AsyncClient,
+) -> None:
+    """Invalid page checked before invalid per_page."""
+    resp = await client.get("/todos", params={"page": "abc", "per_page": "abc"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
+
+
+# --- Unknown query param triggers envelope response ---
+
+
+@pytest.mark.asyncio
+async def test_unknown_query_param_returns_envelope(
+    client: AsyncClient,
+) -> None:
+    """GET /todos?foo=bar returns envelope format with defaults."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"foo": "bar"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    assert "page" in data
+    assert "per_page" in data
+    assert "total" in data
+    assert data["page"] == 1
+    assert data["per_page"] == 10
+
+
+# --- Title float type on PUT and PATCH ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_float(client: AsyncClient) -> None:
+    """PUT with title: 3.14 returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": 3.14})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_float(client: AsyncClient) -> None:
+    """PATCH with title: 3.14 returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": 3.14})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- Completed float/list/object types ---
+
+
+@pytest.mark.asyncio
+async def test_put_completed_float(client: AsyncClient) -> None:
+    """PUT with completed: 3.14 returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": 3.14},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_list(client: AsyncClient) -> None:
+    """PATCH with completed: [] returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": []})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_put_completed_object(client: AsyncClient) -> None:
+    """PUT with completed: {} returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": {}},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- Path ID with leading zeros ---
+
+
+@pytest.mark.asyncio
+async def test_get_path_id_leading_zeros(client: AsyncClient) -> None:
+    """GET /todos/01 resolves to todo with ID 1."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.get(f"/todos/0{todo_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id
+
+
+# --- Title float type on POST ---
+
+
+@pytest.mark.asyncio
+async def test_create_title_float(client: AsyncClient) -> None:
+    """POST /todos with title: 3.14 returns 422."""
+    resp = await client.post("/todos", json={"title": 3.14})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
