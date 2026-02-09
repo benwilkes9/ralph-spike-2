@@ -92,8 +92,8 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 **Description:** Create `src/ralf_spike_2/schemas.py` with:
 - `TodoCreate`: `title` (str, required). No `completed` field accepted.
-- `TodoUpdatePut`: `title` (str, required), `completed` (bool, optional, default False).
-- `TodoUpdatePatch`: `title` (str | None), `completed` (bool | None). Custom validator: at least one recognized field must be provided.
+- `TodoUpdatePut`: `title` (str, required), `completed` (bool, optional, default False). Use `strict=True` on `completed` so non-boolean types (e.g., integers, strings) are rejected as type errors rather than coerced.
+- `TodoUpdatePatch`: `title` (str | None), `completed` (bool | None). Use `strict=True` on `completed`. Custom validator: at least one recognized field must be provided (i.e., not both `title is None and completed is None` after unknown fields are stripped).
 - `TodoResponse`: `id` (int), `title` (str), `completed` (bool). Used for all single-todo responses.
 - `PaginatedResponse`: `items` (list[TodoResponse]), `page` (int), `per_page` (int), `total` (int).
 - All models must use `model_config = ConfigDict(extra="ignore")` so unknown fields are silently dropped.
