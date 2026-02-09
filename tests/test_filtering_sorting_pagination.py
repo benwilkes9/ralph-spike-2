@@ -989,3 +989,51 @@ async def test_search_whitespace_only(client: AsyncClient) -> None:
     data = resp.json()
     assert len(data["items"]) == 1
     assert data["items"][0]["title"] == "hello world"
+
+
+# --- Query param edge cases: leading zeros and plus signs ---
+
+
+@pytest.mark.asyncio
+async def test_page_leading_zero_accepted(client: AsyncClient) -> None:
+    """page=01 is accepted as valid (Python int() parses it)."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"page": "01"})
+    assert resp.status_code == 200
+    assert resp.json()["page"] == 1
+
+
+@pytest.mark.asyncio
+async def test_page_leading_plus_accepted(client: AsyncClient) -> None:
+    """page=+1 is accepted as valid (Python int() parses it)."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"page": "+1"})
+    assert resp.status_code == 200
+    assert resp.json()["page"] == 1
+
+
+@pytest.mark.asyncio
+async def test_per_page_leading_zero_accepted(
+    client: AsyncClient,
+) -> None:
+    """per_page=010 is accepted as valid (Python int() parses it)."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"per_page": "010"})
+    assert resp.status_code == 200
+    assert resp.json()["per_page"] == 10
+
+
+# --- Paginated response completed field is bool not int ---
+
+
+@pytest.mark.asyncio
+async def test_paginated_completed_is_bool(
+    client: AsyncClient,
+) -> None:
+    """Paginated list items have completed as bool, not int 0/1."""
+    await client.post("/todos", json={"title": "Task A"})
+    r = await client.post("/todos", json={"title": "Task B"})
+    await client.post(f"/todos/{r.json()['id']}/complete")
+    resp = await client.get("/todos", params={"page": "1"})
+    for item in resp.json()["items"]:
+        assert isinstance(item["completed"], bool)

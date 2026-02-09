@@ -707,8 +707,7 @@ async def test_create_id_field_ignored(client: AsyncClient) -> None:
     """POST /todos with id: 999 in body ignores it; auto-generates id."""
     resp = await client.post("/todos", json={"title": "Test ID", "id": 999})
     assert resp.status_code == 201
-    assert resp.json()["id"] != 999 or resp.json()["id"] == 999
-    # The key point: the id is auto-generated, not 999
+    assert isinstance(resp.json()["id"], int)
     # Verify by checking the todo exists at the returned id
     todo_id = resp.json()["id"]
     get_resp = await client.get(f"/todos/{todo_id}")

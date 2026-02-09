@@ -401,7 +401,7 @@ async def test_create_invalid_json_body(client: AsyncClient) -> None:
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 422
-    assert "detail" in resp.json()
+    assert resp.json()["detail"] == "Invalid JSON in request body"
 
 
 @pytest.mark.asyncio
@@ -427,7 +427,7 @@ async def test_put_invalid_json_body(client: AsyncClient) -> None:
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 422
-    assert "detail" in resp.json()
+    assert resp.json()["detail"] == "Invalid JSON in request body"
 
 
 @pytest.mark.asyncio
@@ -455,7 +455,7 @@ async def test_patch_invalid_json_body(client: AsyncClient) -> None:
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 422
-    assert "detail" in resp.json()
+    assert resp.json()["detail"] == "Invalid JSON in request body"
 
 
 @pytest.mark.asyncio
@@ -783,3 +783,166 @@ async def test_put_only_unknown_fields(client: AsyncClient) -> None:
     resp = await client.put(f"/todos/{todo_id}", json={"foo": "bar"})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title is required"
+
+
+# --- No body at all ---
+
+
+@pytest.mark.asyncio
+async def test_create_no_body(client: AsyncClient) -> None:
+    """POST /todos with no body returns 422."""
+    resp = await client.post(
+        "/todos",
+        content=b"",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Invalid JSON in request body"
+
+
+@pytest.mark.asyncio
+async def test_put_no_body(client: AsyncClient) -> None:
+    """PUT with no body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        content=b"",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Invalid JSON in request body"
+
+
+@pytest.mark.asyncio
+async def test_patch_no_body(client: AsyncClient) -> None:
+    """PATCH with no body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        content=b"",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Invalid JSON in request body"
+
+
+# --- 405 Method Not Allowed on complete/incomplete ---
+
+
+@pytest.mark.asyncio
+async def test_complete_get_returns_405(client: AsyncClient) -> None:
+    """GET /todos/{id}/complete returns 405."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.get(f"/todos/{todo_id}/complete")
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_incomplete_get_returns_405(client: AsyncClient) -> None:
+    """GET /todos/{id}/incomplete returns 405."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.get(f"/todos/{todo_id}/incomplete")
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_complete_put_returns_405(client: AsyncClient) -> None:
+    """PUT /todos/{id}/complete returns 405."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}/complete", json={"title": "X"})
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_incomplete_delete_returns_405(client: AsyncClient) -> None:
+    """DELETE /todos/{id}/incomplete returns 405."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.delete(f"/todos/{todo_id}/incomplete")
+    assert resp.status_code == 405
+
+
+# --- Response type validation ---
+
+
+@pytest.mark.asyncio
+async def test_get_response_field_types(client: AsyncClient) -> None:
+    """GET /todos/{id} response fields have correct types."""
+    r = await client.post("/todos", json={"title": "Type Check"})
+    todo_id = r.json()["id"]
+    resp = await client.get(f"/todos/{todo_id}")
+    data = resp.json()
+    assert isinstance(data["id"], int)
+    assert isinstance(data["title"], str)
+    assert isinstance(data["completed"], bool)
+
+
+@pytest.mark.asyncio
+async def test_put_response_field_types(client: AsyncClient) -> None:
+    """PUT response fields have correct types."""
+    r = await client.post("/todos", json={"title": "Type Check"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "Updated"})
+    data = resp.json()
+    assert isinstance(data["id"], int)
+    assert isinstance(data["title"], str)
+    assert isinstance(data["completed"], bool)
+
+
+@pytest.mark.asyncio
+async def test_patch_response_field_types(client: AsyncClient) -> None:
+    """PATCH response fields have correct types."""
+    r = await client.post("/todos", json={"title": "Type Check"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": True})
+    data = resp.json()
+    assert isinstance(data["id"], int)
+    assert isinstance(data["title"], str)
+    assert isinstance(data["completed"], bool)
+
+
+@pytest.mark.asyncio
+async def test_complete_response_field_types(
+    client: AsyncClient,
+) -> None:
+    """POST complete response fields have correct types."""
+    r = await client.post("/todos", json={"title": "Type Check"})
+    todo_id = r.json()["id"]
+    resp = await client.post(f"/todos/{todo_id}/complete")
+    data = resp.json()
+    assert isinstance(data["id"], int)
+    assert isinstance(data["title"], str)
+    assert isinstance(data["completed"], bool)
+
+
+@pytest.mark.asyncio
+async def test_list_response_item_types(client: AsyncClient) -> None:
+    """GET /todos list items have correct field types."""
+    await client.post("/todos", json={"title": "Type Check"})
+    resp = await client.get("/todos")
+    items = resp.json()
+    assert len(items) >= 1
+    for item in items:
+        assert isinstance(item["id"], int)
+        assert isinstance(item["title"], str)
+        assert isinstance(item["completed"], bool)
+
+
+# --- Trim + length + uniqueness combined ---
+
+
+@pytest.mark.asyncio
+async def test_create_trim_length_uniqueness_combined(
+    client: AsyncClient,
+) -> None:
+    """POST title at 500 chars after trim that is a case-insensitive dup."""
+    title = "a" * 500
+    await client.post("/todos", json={"title": title})
+    resp = await client.post("/todos", json={"title": f"  {'A' * 500}  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == ("A todo with this title already exists")

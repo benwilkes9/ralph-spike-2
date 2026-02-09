@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 287 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 304 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -29,6 +29,19 @@ All CRUD endpoints (1.x–6.x), error handling (5.x), filtering/sorting/paginati
 - **Length-before-uniqueness**: Tests for PUT/PATCH validation priority 4 before priority 5.
 - **Misc edge cases**: PATCH `completed=false` on already-false todo (idempotent), POST with `completed: false` ignored, search with whitespace-only string.
 - **Total: 26 new tests**, bringing count from 261 to 287.
+
+## Test Quality Hardening (0.0.16)
+
+- **Audit-driven**: Deep spec-vs-test audit identified assertion quality gaps and missing edge cases.
+- **Fixed tautological assertion**: `test_create_id_field_ignored` had `assert x != 999 or x == 999` (always true); replaced with `isinstance(data["id"], int)`.
+- **Exact error messages for malformed JSON**: Three tests (`test_create_invalid_json_body`, `test_put_invalid_json_body`, `test_patch_invalid_json_body`) upgraded from `"detail" in resp.json()` to exact string match `"Invalid JSON in request body"`.
+- **Empty body tests (3)**: POST/PUT/PATCH with empty body (`content=b""`) — verifies JSONDecodeError handler fires for truly empty requests.
+- **405 Method Not Allowed (4)**: GET/PUT on `/todos/{id}/complete`, GET/DELETE on `/todos/{id}/incomplete` — verifies only POST is allowed on convenience endpoints.
+- **Response field type assertions (5)**: Explicit `isinstance` checks for `id: int`, `title: str`, `completed: bool` across GET, PUT, PATCH, complete, and list responses.
+- **Trim + length + uniqueness combined (1)**: POST with 500-char title after trim that is a case-insensitive duplicate — tests all three constraints simultaneously.
+- **Paginated completed is bool (1)**: Verifies `completed` in paginated list items is `bool`, not SQLite int 0/1.
+- **Leading zeros/plus in page/per_page (3)**: Verifies `page=01`, `page=+1`, `per_page=010` are accepted (Python `int()` behavior).
+- **Total: 17 new tests**, bringing count from 287 to 304.
 
 ## Architecture Notes
 
