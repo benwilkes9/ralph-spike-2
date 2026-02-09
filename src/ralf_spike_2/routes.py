@@ -14,7 +14,12 @@ from ralf_spike_2.errors import (
     validate_title,
 )
 from ralf_spike_2.models import TodoModel
-from ralf_spike_2.schemas import TodoCreate, TodoResponse
+from ralf_spike_2.schemas import (
+    TodoCreate,
+    TodoResponse,
+    TodoUpdatePatch,
+    TodoUpdatePut,
+)
 
 router = APIRouter()
 
@@ -76,9 +81,81 @@ async def list_todos(db: DbSession) -> list[TodoResponse]:
 async def get_todo(id: str, db: DbSession) -> TodoResponse:
     """Return a single todo by id."""
     todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+    return TodoResponse.model_validate(todo)
+
+
+async def _get_todo_or_404(session: AsyncSession, todo_id: int) -> TodoModel:
+    """Fetch a todo by id or raise 404."""
     stmt = select(TodoModel).where(TodoModel.id == todo_id)
-    result = await db.execute(stmt)
+    result = await session.execute(stmt)
     todo = result.scalars().first()
     if todo is None:
         raise TodoNotFoundError()
+    return todo
+
+
+@router.put("/todos/{id}", response_model=TodoResponse)
+async def update_todo_put(id: str, body: TodoUpdatePut, db: DbSession) -> TodoResponse:
+    """Full replacement of a todo."""
+    todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+
+    trimmed_title = validate_title(body.title)
+    title_lower = trimmed_title.lower()
+    await _check_title_unique(db, title_lower, exclude_id=todo_id)
+
+    todo.title = trimmed_title
+    todo.title_lower = title_lower
+    todo.completed = body.completed
+
+    await db.commit()
+    await db.refresh(todo)
+    return TodoResponse.model_validate(todo)
+
+
+@router.patch("/todos/{id}", response_model=TodoResponse)
+async def update_todo_patch(
+    id: str, body: TodoUpdatePatch, db: DbSession
+) -> TodoResponse:
+    """Partial update of a todo."""
+    todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+
+    if body.title is not None:
+        trimmed_title = validate_title(body.title)
+        title_lower = trimmed_title.lower()
+        await _check_title_unique(db, title_lower, exclude_id=todo_id)
+        todo.title = trimmed_title
+        todo.title_lower = title_lower
+
+    if body.completed is not None:
+        todo.completed = body.completed
+
+    await db.commit()
+    await db.refresh(todo)
+    return TodoResponse.model_validate(todo)
+
+
+@router.post("/todos/{id}/complete", response_model=TodoResponse)
+async def mark_todo_complete(id: str, db: DbSession) -> TodoResponse:
+    """Mark a todo as complete. Idempotent."""
+    todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+
+    todo.completed = True
+    await db.commit()
+    await db.refresh(todo)
+    return TodoResponse.model_validate(todo)
+
+
+@router.post("/todos/{id}/incomplete", response_model=TodoResponse)
+async def mark_todo_incomplete(id: str, db: DbSession) -> TodoResponse:
+    """Mark a todo as incomplete. Idempotent."""
+    todo_id = validate_path_id(id)
+    todo = await _get_todo_or_404(db, todo_id)
+
+    todo.completed = False
+    await db.commit()
+    await db.refresh(todo)
     return TodoResponse.model_validate(todo)

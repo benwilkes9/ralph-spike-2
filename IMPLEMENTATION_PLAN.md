@@ -201,7 +201,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 8 -- Update Todo Endpoints
 
-- [ ] **Implement `PUT /todos/{id}`, `PATCH /todos/{id}`, `POST /todos/{id}/complete`, `POST /todos/{id}/incomplete`**
+- [x] **Implement `PUT /todos/{id}`, `PATCH /todos/{id}`, `POST /todos/{id}/complete`, `POST /todos/{id}/incomplete`**
 
 **Description:** Add to the todos router:
 - `PUT /todos/{id}`: Full replacement. `title` required. `completed` optional, defaults to `false` if omitted. Returns 200 with updated todo.
