@@ -88,7 +88,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 4 -- Pydantic Schemas (Request/Response Models)
 
-- [ ] **Define Pydantic models for all request and response shapes**
+- [x] **Define Pydantic models for all request and response shapes**
 
 **Description:** Create `src/ralf_spike_2/schemas.py` with:
 - `TodoCreate`: `title` (str, required). No `completed` field accepted.
