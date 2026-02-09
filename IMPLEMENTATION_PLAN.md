@@ -32,7 +32,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 1 -- Dependencies and Project Configuration
 
-- [ ] **Add runtime and test dependencies to `pyproject.toml`**
+- [x] **Add runtime and test dependencies to `pyproject.toml`**
 
 **Description:** Add all runtime dependencies (`fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `aiosqlite`) to `[project] dependencies`. Add test dependencies (`httpx`, `pytest-asyncio`, `anyio`) to `[project.optional-dependencies] dev`. Ensure `uv sync --all-extras` installs everything.
 
