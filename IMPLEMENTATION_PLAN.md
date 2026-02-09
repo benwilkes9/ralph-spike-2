@@ -47,7 +47,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 2 -- Database Layer
 
-- [ ] **Create SQLite connection management and Todo table schema**
+- [x] **Create SQLite connection management and Todo table schema**
 
 **Description:** Create `src/ralf_spike_2/database.py` with:
 - Async SQLAlchemy engine factory accepting a database URL (default from env var `DATABASE_URL`, falling back to `sqlite+aiosqlite:///./todos.db`)
