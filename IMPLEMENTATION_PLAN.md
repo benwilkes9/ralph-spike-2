@@ -141,7 +141,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 6 -- Create Todo Endpoint
 
-- [ ] **Implement `POST /todos`**
+- [x] **Implement `POST /todos`**
 
 **Description:** Create `src/ralf_spike_2/routes/todos.py` (or a single `routes.py`) with an APIRouter. Implement `POST /todos`:
 - Parse request body using `TodoCreate` schema (unknown fields ignored).

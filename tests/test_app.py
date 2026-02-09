@@ -1,38 +1,13 @@
 """Tests for the FastAPI application scaffold."""
 
-from collections.abc import AsyncIterator
-
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import Connection, inspect
 from sqlalchemy.ext.asyncio import AsyncEngine
-
-from ralf_spike_2.app import app
-from ralf_spike_2.database import create_engine, create_tables
-
-IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 
 
 def _get_table_names(sync_conn: Connection) -> list[str]:
     return inspect(sync_conn).get_table_names()
-
-
-@pytest_asyncio.fixture
-async def test_engine() -> AsyncIterator[AsyncEngine]:
-    """Create an in-memory engine with tables for testing."""
-    eng = create_engine(IN_MEMORY_URL)
-    await create_tables(eng)
-    yield eng
-    await eng.dispose()
-
-
-@pytest_asyncio.fixture
-async def client() -> AsyncIterator[AsyncClient]:
-    """Create a test HTTP client bound to the FastAPI app."""
-    transport = ASGITransport(app=app)  # type: ignore[arg-type]
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
 
 
 @pytest.mark.asyncio

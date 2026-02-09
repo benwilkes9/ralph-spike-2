@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ralf_spike_2.database import create_engine, create_session_factory, create_tables
 from ralf_spike_2.errors import validation_exception_handler
+from ralf_spike_2.routes import get_db_stub, router
 
 engine = create_engine()
 session_factory = create_session_factory(engine)
@@ -30,6 +31,10 @@ async def get_db() -> AsyncIterator[AsyncSession]:
     """Yield an async database session."""
     async with session_factory() as session:
         yield session
+
+
+app.dependency_overrides[get_db_stub] = get_db
+app.include_router(router)
 
 
 @app.get("/health")
