@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 343 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 368 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -19,6 +19,25 @@ All CRUD endpoints (1.x-6.x), error handling (5.x), filtering/sorting/pagination
 - **PUT/PATCH reuse deleted title (2)**: Confirms hard-deleted titles are freed for reuse via PUT and PATCH, not just POST.
 - **Paginated envelope field types (1)**: Asserts `total`, `page`, `per_page` are integers (type regression guard).
 - **Total: 14 new tests**, bringing count from 329 to 343.
+
+## Spec-vs-Test Gap Analysis (0.0.19)
+
+- **Audit-driven**: Deep spec-vs-test gap analysis compared every acceptance criterion and edge case in specs/ against all 343 existing tests. Identified 25 untested scenarios across validation ordering, 405 method restrictions, whitespace edge cases, and filter/sort/pagination boundaries.
+- **Path ID before body validation (4)**: PUT/PATCH with invalid id + invalid body returns id error first. DELETE/complete with invalid id returns 422 regardless of body.
+- **Additional 405 Method Not Allowed (4)**: PATCH/DELETE on `/complete`, PUT/PATCH on `/incomplete` all return 405.
+- **Whitespace edge cases (4)**: Tab-only title, newline-only title, 600 spaces (blank not length error), 501 chars after trim (length error).
+- **Incomplete endpoint ignores body (1)**: POST `/incomplete` with JSON body still succeeds.
+- **PATCH completed true→false (1)**: Verifies toggling completed from true to false persists.
+- **PUT/PATCH response id matches path (2)**: Response id equals path parameter id.
+- **Delete does not affect other todos (1)**: Other todos remain unchanged after deletion.
+- **Filter/sort case-sensitive (2)**: `order=DESC` and `sort=Title` both return 422.
+- **Search + completed=false (1)**: Intersection of search and incomplete filter.
+- **Search no match total zero (1)**: Empty search results have `total=0`.
+- **Paginated without completed returns all (1)**: Omitting completed filter returns both completed and incomplete.
+- **Very large page value (1)**: `page=999999999` returns empty items.
+- **Search exact full title (1)**: Full title string search returns the todo.
+- **Log entry for 405 (1)**: 405 responses produce log entries.
+- **Total: 25 new tests**, bringing count from 343 to 368.
 
 ## Architecture Notes
 

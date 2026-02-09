@@ -453,3 +453,21 @@ async def test_log_query_string_on_422(
     entry = await _get_log_entry(caplog)
     assert entry["status_code"] == 422
     assert "completed=yes" in entry["query_string"]
+
+
+# --- Log entry for 405 responses ---
+
+
+@pytest.mark.asyncio
+async def test_log_entry_for_405_response(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A 405 response still produces a log entry."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        resp = await client.get("/todos/1/complete")
+    assert resp.status_code == 405
+    entry = await _get_log_entry(caplog)
+    assert entry["status_code"] == 405
+    assert entry["method"] == "GET"
+    assert entry["path"] == "/todos/1/complete"

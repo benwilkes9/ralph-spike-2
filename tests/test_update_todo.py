@@ -982,3 +982,67 @@ async def test_patch_empty_title_valid_completed(
     )
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must not be blank"
+
+
+# --- Incomplete endpoint ignores request body ---
+
+
+@pytest.mark.asyncio
+async def test_incomplete_ignores_body(client: AsyncClient) -> None:
+    """POST /todos/{id}/incomplete ignores any request body."""
+    r = await client.post("/todos", json={"title": "Body Test"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.post(
+        f"/todos/{todo_id}/incomplete",
+        json={"foo": "bar", "title": "Ignored"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is False
+    assert resp.json()["title"] == "Body Test"
+
+
+# --- PATCH completed true -> false ---
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_true_to_false(
+    client: AsyncClient,
+) -> None:
+    """PATCH: change completed from true to false."""
+    r = await client.post("/todos", json={"title": "Toggle"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": False})
+    assert resp.status_code == 200
+    assert resp.json()["completed"] is False
+    # Verify persisted
+    get_resp = await client.get(f"/todos/{todo_id}")
+    assert get_resp.json()["completed"] is False
+
+
+# --- PUT/PATCH response id matches path ---
+
+
+@pytest.mark.asyncio
+async def test_put_response_id_matches_path(
+    client: AsyncClient,
+) -> None:
+    """PUT response id equals the path parameter id."""
+    r = await client.post("/todos", json={"title": "Match ID"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "Updated"})
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id
+
+
+@pytest.mark.asyncio
+async def test_patch_response_id_matches_path(
+    client: AsyncClient,
+) -> None:
+    """PATCH response id equals the path parameter id."""
+    r = await client.post("/todos", json={"title": "Match ID 2"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "Patched"})
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id

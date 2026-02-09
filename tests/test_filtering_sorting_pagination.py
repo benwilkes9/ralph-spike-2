@@ -1078,3 +1078,115 @@ async def test_paginated_envelope_field_types(
     assert isinstance(data["total"], int)
     assert isinstance(data["page"], int)
     assert isinstance(data["per_page"], int)
+
+
+# --- Additional case-sensitive query param validation ---
+
+
+@pytest.mark.asyncio
+async def test_order_desc_uppercase_invalid(
+    client: AsyncClient,
+) -> None:
+    """order=DESC (uppercase) returns 422."""
+    resp = await client.get("/todos", params={"order": "DESC"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "order must be 'asc' or 'desc'"
+
+
+@pytest.mark.asyncio
+async def test_sort_title_mixed_case_invalid(
+    client: AsyncClient,
+) -> None:
+    """sort=Title (mixed case) returns 422."""
+    resp = await client.get("/todos", params={"sort": "Title"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "sort must be 'id' or 'title'"
+
+
+# --- Search combined with completed=false ---
+
+
+@pytest.mark.asyncio
+async def test_search_combined_with_completed_false(
+    client: AsyncClient,
+) -> None:
+    """Search + completed=false returns intersection."""
+    await client.post("/todos", json={"title": "Buy eggs"})
+    r2 = await client.post("/todos", json={"title": "Buy bread"})
+    await client.post(f"/todos/{r2.json()['id']}/complete")
+    await client.post("/todos", json={"title": "Walk dog"})
+
+    resp = await client.get(
+        "/todos",
+        params={"search": "buy", "completed": "false"},
+    )
+    data = resp.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Buy eggs"
+    assert data["items"][0]["completed"] is False
+
+
+# --- Search no match returns total=0 ---
+
+
+@pytest.mark.asyncio
+async def test_search_no_match_total_zero(
+    client: AsyncClient,
+) -> None:
+    """Search with no matches returns total=0 in envelope."""
+    await client.post("/todos", json={"title": "Existing"})
+    resp = await client.get("/todos", params={"search": "nonexistent"})
+    data = resp.json()
+    assert data["total"] == 0
+    assert data["items"] == []
+
+
+# --- Omitting completed returns all (completed + incomplete) ---
+
+
+@pytest.mark.asyncio
+async def test_paginated_without_completed_returns_all(
+    client: AsyncClient,
+) -> None:
+    """Paginated request without completed filter returns all todos."""
+    await client.post("/todos", json={"title": "Task A"})
+    r2 = await client.post("/todos", json={"title": "Task B"})
+    await client.post(f"/todos/{r2.json()['id']}/complete")
+
+    resp = await client.get("/todos", params={"page": "1"})
+    data = resp.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+
+
+# --- Very large page number returns empty items ---
+
+
+@pytest.mark.asyncio
+async def test_page_very_large_valid_value(
+    client: AsyncClient,
+) -> None:
+    """page=999999999 with items returns empty items list."""
+    await client.post("/todos", json={"title": "Sole"})
+    resp = await client.get("/todos", params={"page": "999999999"})
+    data = resp.json()
+    assert data["items"] == []
+    assert data["total"] == 1
+    assert data["page"] == 999999999
+
+
+# --- Search for exact full title ---
+
+
+@pytest.mark.asyncio
+async def test_search_exact_full_title_match(
+    client: AsyncClient,
+) -> None:
+    """Search for the full title string returns that todo."""
+    await client.post("/todos", json={"title": "Buy milk"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    resp = await client.get("/todos", params={"search": "Buy milk"})
+    data = resp.json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Buy milk"

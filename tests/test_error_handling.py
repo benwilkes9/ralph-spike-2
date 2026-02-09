@@ -1265,3 +1265,118 @@ async def test_put_title_bool_completed_null(
     )
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must be a string"
+
+
+# --- Path ID validation before body validation ---
+
+
+@pytest.mark.asyncio
+async def test_put_invalid_id_before_body_validation(
+    client: AsyncClient,
+) -> None:
+    """PUT: invalid path id (pri 0) before missing title (pri 1)."""
+    resp = await client.put("/todos/abc", json={})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_patch_invalid_id_before_body_validation(
+    client: AsyncClient,
+) -> None:
+    """PATCH: invalid path id (pri 0) before empty body (pri 1)."""
+    resp = await client.patch("/todos/abc", json={})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_id_before_lookup(
+    client: AsyncClient,
+) -> None:
+    """DELETE: invalid path id returns 422 not 404."""
+    resp = await client.delete("/todos/-5")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_invalid_id_with_body(
+    client: AsyncClient,
+) -> None:
+    """POST complete: zero id returns 422 regardless of body."""
+    resp = await client.post("/todos/0/complete", content=b"garbage")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- Additional 405 Method Not Allowed tests ---
+
+
+@pytest.mark.asyncio
+async def test_complete_patch_returns_405(client: AsyncClient) -> None:
+    """PATCH /todos/{id}/complete returns 405."""
+    resp = await client.patch("/todos/1/complete")
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_complete_delete_returns_405(client: AsyncClient) -> None:
+    """DELETE /todos/{id}/complete returns 405."""
+    resp = await client.delete("/todos/1/complete")
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_incomplete_put_returns_405(client: AsyncClient) -> None:
+    """PUT /todos/{id}/incomplete returns 405."""
+    resp = await client.put("/todos/1/incomplete", json={})
+    assert resp.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_incomplete_patch_returns_405(client: AsyncClient) -> None:
+    """PATCH /todos/{id}/incomplete returns 405."""
+    resp = await client.patch("/todos/1/incomplete", json={})
+    assert resp.status_code == 405
+
+
+# --- Whitespace edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_create_tab_only_title(client: AsyncClient) -> None:
+    """POST with tab-only title returns 422."""
+    resp = await client.post("/todos", json={"title": "\t\t"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_create_newline_only_title(client: AsyncClient) -> None:
+    """POST with newline-only title returns 422."""
+    resp = await client.post("/todos", json={"title": "\n\n"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_create_long_whitespace_only_title(
+    client: AsyncClient,
+) -> None:
+    """POST with 600 spaces returns blank error (not length error).
+
+    Trim first → empty → blank check fires before length check.
+    """
+    resp = await client.post("/todos", json={"title": " " * 600})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
+
+
+@pytest.mark.asyncio
+async def test_create_title_501_after_trim(client: AsyncClient) -> None:
+    """POST with 501 chars after trim returns length error."""
+    title = " " + "a" * 501 + " "
+    resp = await client.post("/todos", json={"title": title})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"

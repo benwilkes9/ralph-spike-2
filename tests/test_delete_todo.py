@@ -114,3 +114,20 @@ async def test_patch_reuse_deleted_title(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert resp.json()["title"] == "Deleted Title"
+
+
+# --- Delete does not affect other todos ---
+
+
+@pytest.mark.asyncio
+async def test_delete_does_not_affect_other_todos(
+    client: AsyncClient,
+) -> None:
+    """Deleting one todo does not affect other todos."""
+    r1 = await client.post("/todos", json={"title": "Keep Me"})
+    r2 = await client.post("/todos", json={"title": "Delete Me"})
+    await client.delete(f"/todos/{r2.json()['id']}")
+    resp = await client.get(f"/todos/{r1.json()['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Keep Me"
+    assert resp.json()["completed"] is False
