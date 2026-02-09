@@ -267,3 +267,156 @@ async def test_patch_completed_type_before_title_blank(
     )
     assert resp.status_code == 422
     assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- Invalid JSON body handling ---
+
+
+@pytest.mark.asyncio
+async def test_create_invalid_json_body(client: AsyncClient) -> None:
+    """POST /todos with malformed JSON returns 422."""
+    resp = await client.post(
+        "/todos",
+        content=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert "detail" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_create_non_object_json_body(client: AsyncClient) -> None:
+    """POST /todos with JSON array body returns 422."""
+    resp = await client.post(
+        "/todos",
+        content=b"[1,2,3]",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_put_invalid_json_body(client: AsyncClient) -> None:
+    """PUT with malformed JSON returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        content=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert "detail" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_put_non_object_json_body(client: AsyncClient) -> None:
+    """PUT with JSON string body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        content=b'"hello"',
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_patch_invalid_json_body(client: AsyncClient) -> None:
+    """PATCH with malformed JSON returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        content=b"{bad}",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert "detail" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_patch_non_object_json_body(client: AsyncClient) -> None:
+    """PATCH with JSON null body returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        content=b"null",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Request body must be a JSON object"
+
+
+# --- Very large path IDs ---
+
+
+@pytest.mark.asyncio
+async def test_get_very_large_id(client: AsyncClient) -> None:
+    """GET /todos/{id} with id exceeding SQLite range returns 422."""
+    resp = await client.get("/todos/99999999999999999999")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_very_large_id(client: AsyncClient) -> None:
+    """DELETE /todos/{id} with very large id returns 422."""
+    resp = await client.delete("/todos/9223372036854775808")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- PUT completed:null returns 422 (consistent with PATCH) ---
+
+
+@pytest.mark.asyncio
+async def test_put_completed_null_returns_422(client: AsyncClient) -> None:
+    """PUT with completed: null returns 422 (null is not boolean)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Test", "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- Response shape ---
+
+
+@pytest.mark.asyncio
+async def test_create_response_has_only_expected_keys(
+    client: AsyncClient,
+) -> None:
+    """POST /todos response contains exactly id, title, completed."""
+    resp = await client.post("/todos", json={"title": "Test"})
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+@pytest.mark.asyncio
+async def test_get_response_has_only_expected_keys(
+    client: AsyncClient,
+) -> None:
+    """GET /todos/{id} response contains exactly id, title, completed."""
+    r = await client.post("/todos", json={"title": "Test"})
+    resp = await client.get(f"/todos/{r.json()['id']}")
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+# --- Validation order: missing title before bad completed ---
+
+
+@pytest.mark.asyncio
+async def test_create_missing_title_before_bad_completed(
+    client: AsyncClient,
+) -> None:
+    """POST missing title takes priority over bad completed type."""
+    resp = await client.post("/todos", json={"completed": "yes"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"

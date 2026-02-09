@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 149 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 172 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -38,11 +38,23 @@ All sections implemented and tested. 149 tests passing, pyright strict clean, ru
 - **New tests (13)**: Case-insensitive title sorting (asc/desc), default sort in paginated responses, page 2 pagination, beyond-total page echoes requested page, LIKE wildcard escaping (% and _), POST completed non-boolean ignored, PUT empty body, completed-as-integer rejected (PUT/PATCH), cross-field validation order (PUT/PATCH), POST title:null exact message, complete/incomplete response shape.
 - **Tightened existing tests**: complete/incomplete endpoint tests now verify full response shape (id, title, completed). POST title:null test now asserts exact error message.
 
+## Fixes Applied (0.0.10)
+
+- **Invalid JSON body handling**: POST/PUT/PATCH now return 422 with `{"detail": "..."}` for malformed JSON bodies (previously unhandled 500). Added `json.JSONDecodeError` exception handler in `main.py` and `_parse_json_body` helper in routes to validate body is a JSON object.
+- **Non-object JSON body handling**: JSON arrays, strings, numbers, null as request body now return 422 `"Request body must be a JSON object"` instead of crashing with Pydantic validation error.
+- **Very large path IDs**: Path IDs exceeding SQLite's INTEGER range (`2^63 - 1`) now return 422 instead of causing `OverflowError`. Added max value check in `_validate_path_id`.
+- **PUT `completed: null` consistency**: PUT with `completed: null` now returns 422 `"completed must be a boolean"`, consistent with PATCH behavior. Previously silently treated null as omitted (defaulting to false).
+- **PUT handler uses raw body directly**: Removed dependency on `TodoUpdate` Pydantic schema; PUT now validates directly from raw body dict like PATCH, ensuring consistent null/type handling.
+- **Removed unused `TodoUpdate` schema**: No longer needed since PUT validates raw body directly.
+- **New tests (23)**: Invalid JSON body (POST/PUT/PATCH), non-object JSON body (POST/PUT/PATCH), very large path IDs (GET/DELETE), PUT completed:null returns 422, response shape validation, missing title priority over bad completed, backslash in search, sort/order defaults, combined filter+sort+paginate, double-delete returns 404, interior whitespace preserved, float ID validation across all endpoints.
+
 ## Architecture Notes
 
-- **PATCH field tracking**: Uses raw body dict inspection rather than Pydantic model validators because `extra="ignore"` strips tracking fields. The route handler checks `"title" in body` and `"completed" in body` directly.
+- **PUT/PATCH field tracking**: Both handlers use raw body dict inspection rather than Pydantic model validators because `extra="ignore"` strips tracking fields. Route handlers check `"title" in body` and `"completed" in body` directly. This ensures consistent null handling (null ≠ omitted).
 - **Path param validation**: All `{todo_id}` params are typed as `str` to bypass FastAPI's built-in int conversion, enabling custom validation with consistent error messages.
 - **Ruff config**: B008 suppressed for routes.py (FastAPI Depends pattern), TCH suppressed for test files (pytest fixture type hints need runtime imports).
 - **SQLite AUTOINCREMENT**: Model uses `sqlite_autoincrement=True` in `__table_args__` to ensure deleted IDs are never reused per spec.
 - **Cross-field validation**: PUT/PATCH validate type errors on all fields (title and completed) before blank/length on title. This matches the spec's priority ordering: missing(1) → type(2) → blank(3) → length(4) → uniqueness(5).
 - **Search LIKE escaping**: The `\` character is used as the escape character in `ilike()` calls, with `%`, `_`, and `\` all properly escaped in search input.
+- **JSON body validation**: `_parse_json_body` helper validates request body is a dict. `json.JSONDecodeError` handler in `main.py` catches malformed JSON. Both return 422 with `{"detail": "..."}`.
+- **Path ID max value**: `_validate_path_id` rejects values > `2^63 - 1` to prevent SQLite OverflowError.

@@ -465,3 +465,46 @@ async def test_patch_completed_integer_rejected(client: AsyncClient) -> None:
     resp = await client.patch(f"/todos/{todo_id}", json={"completed": 0})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- Float id validation across endpoints ---
+
+
+@pytest.mark.asyncio
+async def test_get_float_id(client: AsyncClient) -> None:
+    """GET /todos/1.5 returns 422."""
+    resp = await client.get("/todos/1.5")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_put_float_id(client: AsyncClient) -> None:
+    """PUT /todos/1.5 returns 422."""
+    resp = await client.put("/todos/1.5", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_float_id(client: AsyncClient) -> None:
+    """DELETE /todos/1.5 returns 422."""
+    resp = await client.delete("/todos/1.5")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_float_id(client: AsyncClient) -> None:
+    """POST /todos/1.5/complete returns 422."""
+    resp = await client.post("/todos/1.5/complete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_float_id(client: AsyncClient) -> None:
+    """POST /todos/1.5/incomplete returns 422."""
+    resp = await client.post("/todos/1.5/incomplete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"

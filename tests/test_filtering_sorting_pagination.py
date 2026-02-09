@@ -487,3 +487,103 @@ async def test_create_completed_non_boolean_ignored(client: AsyncClient) -> None
     )
     assert resp.status_code == 201
     assert resp.json()["completed"] is False
+
+
+# --- Search with backslash ---
+
+
+@pytest.mark.asyncio
+async def test_search_with_backslash(client: AsyncClient) -> None:
+    r"""Search containing \ is treated as literal, not LIKE escape."""
+    await client.post("/todos", json={"title": r"c:\users\docs"})
+    await client.post("/todos", json={"title": "unrelated"})
+    resp = await client.get("/todos", params={"search": r"c:\users"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == r"c:\users\docs"
+
+
+# --- sort=title alone defaults to desc ---
+
+
+@pytest.mark.asyncio
+async def test_sort_title_default_order_desc(client: AsyncClient) -> None:
+    """sort=title without order defaults to descending."""
+    await client.post("/todos", json={"title": "Alpha"})
+    await client.post("/todos", json={"title": "Charlie"})
+    await client.post("/todos", json={"title": "Bravo"})
+    resp = await client.get("/todos", params={"sort": "title"})
+    data = resp.json()
+    titles = [t["title"] for t in data["items"]]
+    assert titles == ["Charlie", "Bravo", "Alpha"]
+
+
+# --- order=asc alone defaults to sort by id ---
+
+
+@pytest.mark.asyncio
+async def test_order_asc_default_sort_id(client: AsyncClient) -> None:
+    """order=asc without sort defaults to id ascending."""
+    await client.post("/todos", json={"title": "First"})
+    await client.post("/todos", json={"title": "Second"})
+    await client.post("/todos", json={"title": "Third"})
+    resp = await client.get("/todos", params={"order": "asc"})
+    data = resp.json()
+    ids = [t["id"] for t in data["items"]]
+    assert ids == sorted(ids)
+
+
+# --- Combined filtering + sorting + pagination ---
+
+
+@pytest.mark.asyncio
+async def test_combined_filter_sort_paginate(client: AsyncClient) -> None:
+    """All features combined: search + completed + sort + pagination."""
+    r1 = await client.post("/todos", json={"title": "Buy apples"})
+    await client.post("/todos", json={"title": "Buy bananas"})
+    r3 = await client.post("/todos", json={"title": "Buy cherries"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    await client.post(f"/todos/{r1.json()['id']}/complete")
+    await client.post(f"/todos/{r3.json()['id']}/complete")
+    resp = await client.get(
+        "/todos",
+        params={
+            "search": "buy",
+            "completed": "true",
+            "sort": "title",
+            "order": "asc",
+            "page": "1",
+            "per_page": "1",
+        },
+    )
+    data = resp.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Buy apples"
+
+
+# --- Delete then delete again ---
+
+
+@pytest.mark.asyncio
+async def test_delete_twice_returns_404(client: AsyncClient) -> None:
+    """DELETE same id twice: first 204, second 404."""
+    r = await client.post("/todos", json={"title": "Delete twice"})
+    todo_id = r.json()["id"]
+    resp1 = await client.delete(f"/todos/{todo_id}")
+    assert resp1.status_code == 204
+    resp2 = await client.delete(f"/todos/{todo_id}")
+    assert resp2.status_code == 404
+
+
+# --- Interior whitespace preserved ---
+
+
+@pytest.mark.asyncio
+async def test_title_interior_whitespace_preserved(
+    client: AsyncClient,
+) -> None:
+    """Interior whitespace in title is preserved after trim."""
+    resp = await client.post("/todos", json={"title": "  hello   world  "})
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "hello   world"

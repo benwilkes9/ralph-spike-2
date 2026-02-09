@@ -24,15 +24,6 @@ class TodoCreate(BaseModel):
     completed: Any = None
 
 
-class TodoUpdate(BaseModel):
-    """Schema for PUT update (full replacement). Extra fields are ignored."""
-
-    model_config = {"extra": "ignore"}
-
-    title: Any = None
-    completed: Any = None
-
-
 class PaginatedResponse(BaseModel):
     """Envelope for paginated list responses."""
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
@@ -14,13 +14,15 @@ from ralf_spike_2.schemas import (
     PaginatedResponse,
     TodoCreate,
     TodoResponse,
-    TodoUpdate,
 )
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
+
+
+_SQLITE_MAX_INT = 2**63 - 1
 
 
 def _validate_path_id(todo_id: str) -> int | None:
@@ -37,11 +39,25 @@ def _validate_path_id(todo_id: str) -> int | None:
     # Reject floats like "1.5" that got truncated
     if "." in todo_id:
         return None
+    # Reject values too large for SQLite INTEGER
+    if val > _SQLITE_MAX_INT:
+        return None
     return val
 
 
 def _error_response(status_code: int, detail: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"detail": detail})
+
+
+async def _parse_json_body(request: Request) -> dict[str, Any] | JSONResponse:
+    """Parse request body as a JSON object.
+
+    Returns the dict or a 422 JSONResponse if body is not a JSON object.
+    """
+    body: Any = await request.json()
+    if not isinstance(body, dict):
+        return _error_response(422, "Request body must be a JSON object")
+    return cast("dict[str, Any]", body)
 
 
 def _validate_title_value(title: Any) -> JSONResponse | None:
@@ -77,7 +93,10 @@ async def create_todo(
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     """Create a new todo."""
-    body: dict[str, Any] = await request.json()
+    parsed = await _parse_json_body(request)
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    body: dict[str, Any] = parsed
 
     # Parse through schema to strip unknown fields
     data = TodoCreate.model_validate(body)
@@ -241,25 +260,32 @@ async def update_todo(
     if todo is None:
         return _error_response(404, "Todo not found")
 
-    body: dict[str, Any] = await request.json()
-    data = TodoUpdate.model_validate(body)
+    parsed = await _parse_json_body(request)
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    raw_body: dict[str, Any] = parsed
 
     # Validation order: missing -> type -> blank -> length -> uniqueness
     # Priority 1: Missing required field
-    if data.title is None:
+    if "title" not in raw_body:
         return _error_response(422, "title is required")
 
-    # Priority 2: Type errors (all fields)
-    if not isinstance(data.title, str):
+    # Priority 2: Type errors (all fields checked before blank/length)
+    title_val: Any = raw_body.get("title")
+    if title_val is None:
+        return _error_response(422, "title is required")
+    if not isinstance(title_val, str):
         return _error_response(422, "title must be a string")
+    has_completed = "completed" in raw_body
     completed_val = False
-    if data.completed is not None:
-        if not isinstance(data.completed, bool):
+    if has_completed:
+        completed_raw: Any = raw_body["completed"]
+        if not isinstance(completed_raw, bool):
             return _error_response(422, "completed must be a boolean")
-        completed_val = data.completed
+        completed_val = completed_raw
 
     # Priority 3-4: Blank and length (title only)
-    trimmed_title: str = data.title.strip()
+    trimmed_title: str = title_val.strip()
     if not trimmed_title:
         return _error_response(422, "title must not be blank")
     if len(trimmed_title) > 500:
@@ -298,7 +324,10 @@ async def patch_todo(
     if todo is None:
         return _error_response(404, "Todo not found")
 
-    body: dict[str, Any] = await request.json()
+    parsed = await _parse_json_body(request)
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    body: dict[str, Any] = parsed
 
     # Check which recognized fields are present in raw body
     has_title = "title" in body

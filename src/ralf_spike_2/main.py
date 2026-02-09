@@ -1,5 +1,6 @@
 """FastAPI application entry point for the Todo API."""
 
+import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -38,4 +39,15 @@ async def validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content={"detail": "Validation error"},
+    )
+
+
+@app.exception_handler(json.JSONDecodeError)
+async def json_decode_exception_handler(
+    request: Request, exc: json.JSONDecodeError
+) -> JSONResponse:
+    """Return 422 for malformed JSON request bodies."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Invalid JSON in request body"},
     )
