@@ -178,7 +178,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 7 -- Retrieve Todos Endpoints
 
-- [ ] **Implement `GET /todos` (list all) and `GET /todos/{id}` (get single)**
+- [x] **Implement `GET /todos` (list all) and `GET /todos/{id}` (get single)**
 
 **Description:** Add to the todos router:
 - `GET /todos`: Return all todos ordered by descending `id`. Returns a plain JSON array. Empty database returns `[]`.

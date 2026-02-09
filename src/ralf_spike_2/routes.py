@@ -7,7 +7,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ralf_spike_2.errors import DuplicateTitleError, validate_title
+from ralf_spike_2.errors import (
+    DuplicateTitleError,
+    TodoNotFoundError,
+    validate_path_id,
+    validate_title,
+)
 from ralf_spike_2.models import TodoModel
 from ralf_spike_2.schemas import TodoCreate, TodoResponse
 
@@ -55,4 +60,25 @@ async def create_todo(
     await db.commit()
     await db.refresh(todo)
 
+    return TodoResponse.model_validate(todo)
+
+
+@router.get("/todos", response_model=list[TodoResponse])
+async def list_todos(db: DbSession) -> list[TodoResponse]:
+    """Return all todos ordered by descending id (newest first)."""
+    stmt = select(TodoModel).order_by(TodoModel.id.desc())
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [TodoResponse.model_validate(row) for row in rows]
+
+
+@router.get("/todos/{id}", response_model=TodoResponse)
+async def get_todo(id: str, db: DbSession) -> TodoResponse:
+    """Return a single todo by id."""
+    todo_id = validate_path_id(id)
+    stmt = select(TodoModel).where(TodoModel.id == todo_id)
+    result = await db.execute(stmt)
+    todo = result.scalars().first()
+    if todo is None:
+        raise TodoNotFoundError()
     return TodoResponse.model_validate(todo)
