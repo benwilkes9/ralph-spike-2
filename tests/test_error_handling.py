@@ -1170,3 +1170,98 @@ async def test_create_title_float(client: AsyncClient) -> None:
     resp = await client.post("/todos", json={"title": 3.14})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title must be a string"
+
+
+# --- Path ID boundary: exactly SQLite max (2^63 - 1) ---
+
+
+@pytest.mark.asyncio
+async def test_get_path_id_exactly_sqlite_max(
+    client: AsyncClient,
+) -> None:
+    """GET /todos/9223372036854775807 (2^63-1) is valid ID, returns 404."""
+    resp = await client.get("/todos/9223372036854775807")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_get_path_id_one_above_sqlite_max(
+    client: AsyncClient,
+) -> None:
+    """GET /todos/9223372036854775808 (2^63) returns 422."""
+    resp = await client.get("/todos/9223372036854775808")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- PATCH cross-field: completed:null + blank title ---
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_null_before_title_blank(
+    client: AsyncClient,
+) -> None:
+    """PATCH: completed:null (type, pri 2) before title:'' (blank, pri 3)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "", "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- PATCH cross-field: title:null + completed:null ---
+
+
+@pytest.mark.asyncio
+async def test_patch_title_null_completed_null(
+    client: AsyncClient,
+) -> None:
+    """PATCH: title:null + completed:null returns title type error first."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": None, "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- PUT cross-field: completed:null + title over 500 chars ---
+
+
+@pytest.mark.asyncio
+async def test_put_completed_null_before_title_length(
+    client: AsyncClient,
+) -> None:
+    """PUT: completed:null (type, pri 2) before title length (pri 4)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "a" * 501, "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- PUT cross-field: title:bool + completed:null ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_bool_completed_null(
+    client: AsyncClient,
+) -> None:
+    """PUT: title:true + completed:null returns title type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": True, "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"

@@ -394,3 +394,62 @@ async def test_logging_does_not_alter_error_response(
         resp = await client.get("/todos/abc")
     assert resp.status_code == 422
     assert resp.json() == {"detail": "id must be a positive integer"}
+
+
+# --- _JsonFormatter non-dict message branch ---
+
+
+def test_json_formatter_non_dict_message() -> None:
+    """JSON formatter formats non-dict messages as {"message": "..."}."""
+    from ralf_spike_2.logging_middleware import setup_logging
+
+    setup_logging()
+    todo_logger = logging.getLogger("todo_api")
+    # Get the JSON formatter from the handler
+    formatter = todo_logger.handlers[0].formatter
+    assert formatter is not None
+    record = logging.LogRecord(
+        name="todo_api",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="plain string",
+        args=None,
+        exc_info=None,
+    )
+    output = formatter.format(record)
+    parsed = json.loads(output)
+    assert parsed == {"message": "plain string"}
+
+
+# --- setup_logging() idempotency ---
+
+
+def test_setup_logging_idempotent() -> None:
+    """Calling setup_logging() multiple times adds only one handler."""
+    from ralf_spike_2.logging_middleware import setup_logging
+
+    todo_logger = logging.getLogger("todo_api")
+    initial_count = len(todo_logger.handlers)
+    setup_logging()
+    setup_logging()
+    setup_logging()
+    # Should not have added more than one handler total
+    assert len(todo_logger.handlers) <= initial_count + 1
+
+
+# --- Log query_string on 422 error response ---
+
+
+@pytest.mark.asyncio
+async def test_log_query_string_on_422(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Log entry captures query_string even when request returns 422."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        resp = await client.get("/todos?completed=yes")
+    assert resp.status_code == 422
+    entry = await _get_log_entry(caplog)
+    assert entry["status_code"] == 422
+    assert "completed=yes" in entry["query_string"]

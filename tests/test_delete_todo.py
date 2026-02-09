@@ -86,3 +86,31 @@ async def test_deleted_title_reusable_case_insensitive(
     resp = await client.post("/todos", json={"title": "buy milk"})
     assert resp.status_code == 201
     assert resp.json()["title"] == "buy milk"
+
+
+@pytest.mark.asyncio
+async def test_put_reuse_deleted_title(client: AsyncClient) -> None:
+    """PUT can reuse a title from a deleted todo."""
+    r1 = await client.post("/todos", json={"title": "Deleted Title"})
+    await client.delete(f"/todos/{r1.json()['id']}")
+    r2 = await client.post("/todos", json={"title": "Other"})
+    resp = await client.put(
+        f"/todos/{r2.json()['id']}",
+        json={"title": "Deleted Title"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Deleted Title"
+
+
+@pytest.mark.asyncio
+async def test_patch_reuse_deleted_title(client: AsyncClient) -> None:
+    """PATCH can reuse a title from a deleted todo."""
+    r1 = await client.post("/todos", json={"title": "Deleted Title"})
+    await client.delete(f"/todos/{r1.json()['id']}")
+    r2 = await client.post("/todos", json={"title": "Other"})
+    resp = await client.patch(
+        f"/todos/{r2.json()['id']}",
+        json={"title": "Deleted Title"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Deleted Title"

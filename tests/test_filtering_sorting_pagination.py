@@ -1037,3 +1037,44 @@ async def test_paginated_completed_is_bool(
     resp = await client.get("/todos", params={"page": "1"})
     for item in resp.json()["items"]:
         assert isinstance(item["completed"], bool)
+
+
+# --- Search for standalone LIKE wildcard characters ---
+
+
+@pytest.mark.asyncio
+async def test_search_only_percent(client: AsyncClient) -> None:
+    """Search for '%' alone matches only titles containing literal %."""
+    await client.post("/todos", json={"title": "100% done"})
+    await client.post("/todos", json={"title": "all done"})
+    resp = await client.get("/todos", params={"search": "%"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "100% done"
+
+
+@pytest.mark.asyncio
+async def test_search_only_underscore(client: AsyncClient) -> None:
+    """Search for '_' alone matches only titles containing literal _."""
+    await client.post("/todos", json={"title": "my_var"})
+    await client.post("/todos", json={"title": "myvar"})
+    resp = await client.get("/todos", params={"search": "_"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "my_var"
+
+
+# --- Paginated response field types ---
+
+
+@pytest.mark.asyncio
+async def test_paginated_envelope_field_types(
+    client: AsyncClient,
+) -> None:
+    """Paginated envelope total, page, per_page are integers."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"page": "1"})
+    data = resp.json()
+    assert isinstance(data["total"], int)
+    assert isinstance(data["page"], int)
+    assert isinstance(data["per_page"], int)
