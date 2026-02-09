@@ -282,12 +282,15 @@ async def test_patch_unknown_fields_alongside_known(
 
 @pytest.mark.asyncio
 async def test_complete_todo(client: AsyncClient) -> None:
-    """POST /todos/{id}/complete sets completed to true."""
+    """POST /todos/{id}/complete sets completed to true and returns full todo."""
     r = await client.post("/todos", json={"title": "Test"})
     todo_id = r.json()["id"]
     resp = await client.post(f"/todos/{todo_id}/complete")
     assert resp.status_code == 200
-    assert resp.json()["completed"] is True
+    data = resp.json()
+    assert data["completed"] is True
+    assert data["id"] == todo_id
+    assert data["title"] == "Test"
 
 
 @pytest.mark.asyncio
@@ -303,13 +306,16 @@ async def test_complete_already_completed(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_incomplete_todo(client: AsyncClient) -> None:
-    """POST /todos/{id}/incomplete sets completed to false."""
+    """POST /todos/{id}/incomplete sets completed to false and returns full todo."""
     r = await client.post("/todos", json={"title": "Test"})
     todo_id = r.json()["id"]
     await client.post(f"/todos/{todo_id}/complete")
     resp = await client.post(f"/todos/{todo_id}/incomplete")
     assert resp.status_code == 200
-    assert resp.json()["completed"] is False
+    data = resp.json()
+    assert data["completed"] is False
+    assert data["id"] == todo_id
+    assert data["title"] == "Test"
 
 
 @pytest.mark.asyncio
@@ -424,5 +430,38 @@ async def test_put_completed_string(client: AsyncClient) -> None:
         f"/todos/{todo_id}",
         json={"title": "Valid", "completed": "yes"},
     )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_put_empty_body(client: AsyncClient) -> None:
+    """PUT with empty body returns 422 with 'title is required'."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+@pytest.mark.asyncio
+async def test_put_completed_integer_rejected(client: AsyncClient) -> None:
+    """PUT with completed: 1 returns 422 (integers are not booleans)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": 1},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_integer_rejected(client: AsyncClient) -> None:
+    """PATCH with completed: 0 returns 422 (integers are not booleans)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": 0})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "completed must be a boolean"

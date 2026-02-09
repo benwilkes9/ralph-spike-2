@@ -144,9 +144,10 @@ async def test_create_title_integer(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_create_title_null(client: AsyncClient) -> None:
-    """POST /todos with title: null returns 422."""
+    """POST /todos with title: null returns 422 with 'title is required'."""
     resp = await client.post("/todos", json={"title": None})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
 
 
 @pytest.mark.asyncio
@@ -233,3 +234,36 @@ async def test_incomplete_zero_id(client: AsyncClient) -> None:
     resp = await client.post("/todos/0/incomplete")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- Cross-field validation ordering ---
+
+
+@pytest.mark.asyncio
+async def test_put_completed_type_before_title_blank(
+    client: AsyncClient,
+) -> None:
+    """PUT: completed type error (priority 2) before title blank (3)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "   ", "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_type_before_title_blank(
+    client: AsyncClient,
+) -> None:
+    """PATCH: completed type error (priority 2) before title blank (3)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "   ", "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"

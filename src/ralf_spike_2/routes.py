@@ -56,13 +56,6 @@ def _validate_title_value(title: Any) -> JSONResponse | None:
     return None
 
 
-def _validate_completed_value(completed: Any) -> JSONResponse | None:
-    """Validate completed type. Returns error response or None."""
-    if not isinstance(completed, bool):
-        return _error_response(422, "completed must be a boolean")
-    return None
-
-
 async def _check_title_unique(
     session: AsyncSession, title: str, exclude_id: int | None = None
 ) -> JSONResponse | None:
@@ -137,9 +130,10 @@ async def list_todos(
             return _error_response(422, "completed must be true or false")
         query = query.where(Todo.completed == (completed == "true"))
 
-    # Apply search filter
+    # Apply search filter (escape LIKE wildcards for literal substring match)
     if search is not None and search != "":
-        query = query.where(Todo.title.ilike(f"%{search}%"))
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.where(Todo.title.ilike(f"%{escaped}%", escape="\\"))
 
     # Validate sort
     sort_field = sort if sort is not None else "id"
@@ -251,23 +245,27 @@ async def update_todo(
     data = TodoUpdate.model_validate(body)
 
     # Validation order: missing -> type -> blank -> length -> uniqueness
+    # Priority 1: Missing required field
     if data.title is None:
         return _error_response(422, "title is required")
 
-    title_err = _validate_title_value(data.title)
-    if title_err is not None:
-        return title_err
-
-    trimmed_title: str = data.title.strip()
-
-    # Validate completed type if provided
+    # Priority 2: Type errors (all fields)
+    if not isinstance(data.title, str):
+        return _error_response(422, "title must be a string")
     completed_val = False
     if data.completed is not None:
-        completed_err = _validate_completed_value(data.completed)
-        if completed_err is not None:
-            return completed_err
+        if not isinstance(data.completed, bool):
+            return _error_response(422, "completed must be a boolean")
         completed_val = data.completed
 
+    # Priority 3-4: Blank and length (title only)
+    trimmed_title: str = data.title.strip()
+    if not trimmed_title:
+        return _error_response(422, "title must not be blank")
+    if len(trimmed_title) > 500:
+        return _error_response(422, "title must be 500 characters or fewer")
+
+    # Priority 5: Uniqueness
     uniqueness_err = await _check_title_unique(
         session, trimmed_title, exclude_id=validated_id
     )
@@ -309,30 +307,33 @@ async def patch_todo(
     if not has_title and not has_completed:
         return _error_response(422, "At least one field must be provided")
 
+    # Priority 2: Type errors (all fields before blank/length)
+    title_val: Any = body.get("title")
+    completed_val: Any = body.get("completed")
+    if has_title and not isinstance(title_val, str):
+        return _error_response(422, "title must be a string")
+    if has_completed and not isinstance(completed_val, bool):
+        return _error_response(422, "completed must be a boolean")
+
+    # Priority 3-4: Blank and length (title only)
     if has_title:
-        title_val = body["title"]
-        if title_val is None:
-            return _error_response(422, "title must be a string")
-
-        title_err = _validate_title_value(title_val)
-        if title_err is not None:
-            return title_err
-
+        assert isinstance(title_val, str)
         trimmed_title: str = title_val.strip()
+        if not trimmed_title:
+            return _error_response(422, "title must not be blank")
+        if len(trimmed_title) > 500:
+            return _error_response(422, "title must be 500 characters or fewer")
 
+        # Priority 5: Uniqueness
         uniqueness_err = await _check_title_unique(
             session, trimmed_title, exclude_id=validated_id
         )
         if uniqueness_err is not None:
             return uniqueness_err
-
         todo.title = trimmed_title
 
     if has_completed:
-        completed_val = body["completed"]
-        completed_err = _validate_completed_value(completed_val)
-        if completed_err is not None:
-            return completed_err
+        assert isinstance(completed_val, bool)
         todo.completed = completed_val
 
     await session.commit()

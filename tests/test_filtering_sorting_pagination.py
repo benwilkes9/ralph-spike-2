@@ -370,3 +370,120 @@ async def test_per_page_float_string(client: AsyncClient) -> None:
     resp = await client.get("/todos", params={"per_page": "1.5"})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
+
+
+# --- Case-insensitive title sorting ---
+
+
+@pytest.mark.asyncio
+async def test_sort_title_asc_case_insensitive(client: AsyncClient) -> None:
+    """sort=title&order=asc sorts case-insensitively (e.g. 'apple' before 'Banana')."""
+    await client.post("/todos", json={"title": "banana"})
+    await client.post("/todos", json={"title": "Apple"})
+    await client.post("/todos", json={"title": "cherry"})
+    resp = await client.get("/todos", params={"sort": "title", "order": "asc"})
+    data = resp.json()
+    titles = [t["title"] for t in data["items"]]
+    assert titles == ["Apple", "banana", "cherry"]
+
+
+@pytest.mark.asyncio
+async def test_sort_title_desc_case_insensitive(client: AsyncClient) -> None:
+    """sort=title&order=desc sorts case-insensitively in reverse."""
+    await client.post("/todos", json={"title": "banana"})
+    await client.post("/todos", json={"title": "Apple"})
+    await client.post("/todos", json={"title": "cherry"})
+    resp = await client.get("/todos", params={"sort": "title", "order": "desc"})
+    data = resp.json()
+    titles = [t["title"] for t in data["items"]]
+    assert titles == ["cherry", "banana", "Apple"]
+
+
+# --- Default sort order in paginated responses ---
+
+
+@pytest.mark.asyncio
+async def test_paginated_default_sort_id_desc(client: AsyncClient) -> None:
+    """Paginated response defaults to id descending when sort/order omitted."""
+    await client.post("/todos", json={"title": "First"})
+    await client.post("/todos", json={"title": "Second"})
+    await client.post("/todos", json={"title": "Third"})
+    resp = await client.get("/todos", params={"page": "1", "per_page": "10"})
+    data = resp.json()
+    ids = [t["id"] for t in data["items"]]
+    assert ids == sorted(ids, reverse=True)
+
+
+# --- Pagination page 2+ ---
+
+
+@pytest.mark.asyncio
+async def test_pagination_page_2(client: AsyncClient) -> None:
+    """Page 2 returns a different, correct set of items."""
+    for i in range(5):
+        await client.post("/todos", json={"title": f"Todo {i}"})
+    resp1 = await client.get(
+        "/todos", params={"page": "1", "per_page": "2", "sort": "id", "order": "asc"}
+    )
+    resp2 = await client.get(
+        "/todos", params={"page": "2", "per_page": "2", "sort": "id", "order": "asc"}
+    )
+    page1_ids = [t["id"] for t in resp1.json()["items"]]
+    page2_ids = [t["id"] for t in resp2.json()["items"]]
+    assert len(page1_ids) == 2
+    assert len(page2_ids) == 2
+    # No overlap and page 2 comes after page 1
+    assert set(page1_ids).isdisjoint(set(page2_ids))
+    assert min(page2_ids) > max(page1_ids)
+
+
+# --- Paginated response echoes requested page ---
+
+
+@pytest.mark.asyncio
+async def test_pagination_beyond_total_echoes_page(client: AsyncClient) -> None:
+    """Response echoes back the requested page number even beyond total."""
+    await client.post("/todos", json={"title": "A"})
+    resp = await client.get("/todos", params={"page": "99", "per_page": "10"})
+    data = resp.json()
+    assert data["page"] == 99
+    assert data["items"] == []
+    assert data["total"] == 1
+
+
+# --- Search with LIKE wildcards ---
+
+
+@pytest.mark.asyncio
+async def test_search_with_percent_wildcard(client: AsyncClient) -> None:
+    """Search containing % is treated as literal, not LIKE wildcard."""
+    await client.post("/todos", json={"title": "100% complete"})
+    await client.post("/todos", json={"title": "Unrelated"})
+    resp = await client.get("/todos", params={"search": "100%"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "100% complete"
+
+
+@pytest.mark.asyncio
+async def test_search_with_underscore_wildcard(client: AsyncClient) -> None:
+    """Search containing _ is treated as literal, not LIKE wildcard."""
+    await client.post("/todos", json={"title": "my_task"})
+    await client.post("/todos", json={"title": "myXtask"})
+    resp = await client.get("/todos", params={"search": "my_task"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "my_task"
+
+
+# --- Create with non-boolean completed ---
+
+
+@pytest.mark.asyncio
+async def test_create_completed_non_boolean_ignored(client: AsyncClient) -> None:
+    """POST with completed: 'yes' still succeeds (completed not accepted on create)."""
+    resp = await client.post(
+        "/todos", json={"title": "Test ignored", "completed": "yes"}
+    )
+    assert resp.status_code == 201
+    assert resp.json()["completed"] is False

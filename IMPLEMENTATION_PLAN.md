@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 136 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 149 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -30,13 +30,13 @@ All sections implemented and tested. 136 tests passing, pyright strict clean, ru
 - **6.2** pyproject.toml description updated — [x]
 - **6.3** Package docstring updated — [x]
 
-## Fixes Applied (0.0.8)
+## Fixes Applied (0.0.9)
 
-- **Error messages aligned to spec**: Title length (`"title must be 500 characters or fewer"`), completed filter (`"completed must be true or false"` without quotes), per_page (`"per_page must be an integer between 1 and 100"` with "an integer").
-- **PATCH `title: null`**: Changed from `"title is required"` to `"title must be a string"` — in PATCH, title is optional so null is a type error, not a missing field.
-- **SQLite AUTOINCREMENT**: Added `sqlite_autoincrement=True` to Todo model to prevent ID reuse after deletion, matching spec requirement.
-- **Test assertions tightened**: All error detail messages now use exact string equality assertions instead of loose substring checks. Covers create, update, delete, filtering, sorting, pagination.
-- **New tests added (13)**: PATCH title null/non-string/completed null, PUT title null/non-string/completed string, deleted ID not reused, combined trim+case-fold uniqueness, title 500 after trim, per_page=100 boundary, empty DB pagination, page/per_page float strings.
+- **SQL LIKE wildcard escaping**: Search parameter now escapes `%`, `_`, and `\` before using `ilike()`, preventing SQL wildcard injection in substring search. Spec says "substring match", not "LIKE pattern match".
+- **Cross-field validation ordering**: PUT and PATCH now check type errors across ALL fields (priority 2) before checking blank/length on any field (priority 3-4). Previously, title blank error (priority 3) was returned before completed type error (priority 2) when both were present.
+- **Removed unused `_validate_completed_value` helper**: Inlined completed type checks into PUT/PATCH for correct cross-field ordering.
+- **New tests (13)**: Case-insensitive title sorting (asc/desc), default sort in paginated responses, page 2 pagination, beyond-total page echoes requested page, LIKE wildcard escaping (% and _), POST completed non-boolean ignored, PUT empty body, completed-as-integer rejected (PUT/PATCH), cross-field validation order (PUT/PATCH), POST title:null exact message, complete/incomplete response shape.
+- **Tightened existing tests**: complete/incomplete endpoint tests now verify full response shape (id, title, completed). POST title:null test now asserts exact error message.
 
 ## Architecture Notes
 
@@ -44,3 +44,5 @@ All sections implemented and tested. 136 tests passing, pyright strict clean, ru
 - **Path param validation**: All `{todo_id}` params are typed as `str` to bypass FastAPI's built-in int conversion, enabling custom validation with consistent error messages.
 - **Ruff config**: B008 suppressed for routes.py (FastAPI Depends pattern), TCH suppressed for test files (pytest fixture type hints need runtime imports).
 - **SQLite AUTOINCREMENT**: Model uses `sqlite_autoincrement=True` in `__table_args__` to ensure deleted IDs are never reused per spec.
+- **Cross-field validation**: PUT/PATCH validate type errors on all fields (title and completed) before blank/length on title. This matches the spec's priority ordering: missing(1) → type(2) → blank(3) → length(4) → uniqueness(5).
+- **Search LIKE escaping**: The `\` character is used as the escape character in `ilike()` calls, with `%`, `_`, and `\` all properly escaped in search input.
