@@ -42,3 +42,8 @@ docker run --rm -it \
     -e BRANCH="$BRANCH" \
     -v "$LOCAL_LOGS:/workspace/repo/logs" \
     claude-loop "$@"
+
+# ─── Sync local branch with remote pushes from container ────────
+echo ""
+echo "Syncing local branch with remote..."
+git pull --rebase origin "$BRANCH" 2>/dev/null && echo "Local branch up to date." || echo "Warning: failed to sync with remote."
