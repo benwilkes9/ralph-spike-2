@@ -485,3 +485,87 @@ async def test_list_todos_item_shape(client: AsyncClient) -> None:
     resp = await client.get("/todos")
     for item in resp.json():
         assert set(item.keys()) == {"id", "title", "completed"}
+
+
+# --- Validation order: title null with completed present ---
+
+
+@pytest.mark.asyncio
+async def test_create_title_null_with_completed(
+    client: AsyncClient,
+) -> None:
+    """POST: title:null is 'title is required' (missing), not type error."""
+    resp = await client.post("/todos", json={"title": None, "completed": True})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+# --- PUT title type error before completed type error ---
+
+
+@pytest.mark.asyncio
+async def test_put_both_type_errors_title_first(
+    client: AsyncClient,
+) -> None:
+    """PUT: when title and completed both have type errors, title first."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": 123, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- PATCH title type error before completed type error ---
+
+
+@pytest.mark.asyncio
+async def test_patch_both_type_errors_title_first(
+    client: AsyncClient,
+) -> None:
+    """PATCH: when title and completed both have type errors, title first."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": 123, "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- Very large path ID on PUT, PATCH, complete, incomplete ---
+
+
+@pytest.mark.asyncio
+async def test_put_very_large_id(client: AsyncClient) -> None:
+    """PUT with id exceeding SQLite range returns 422."""
+    resp = await client.put("/todos/99999999999999999999", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_patch_very_large_id(client: AsyncClient) -> None:
+    """PATCH with id exceeding SQLite range returns 422."""
+    resp = await client.patch("/todos/99999999999999999999", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_very_large_id(client: AsyncClient) -> None:
+    """POST complete with very large id returns 422."""
+    resp = await client.post("/todos/99999999999999999999/complete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_very_large_id(client: AsyncClient) -> None:
+    """POST incomplete with very large id returns 422."""
+    resp = await client.post("/todos/99999999999999999999/incomplete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"

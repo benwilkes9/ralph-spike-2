@@ -886,3 +886,92 @@ async def test_filter_completed_false_title_case(
     resp = await client.get("/todos", params={"completed": "False"})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "completed must be true or false"
+
+
+# --- Combined all 6 query params ---
+
+
+@pytest.mark.asyncio
+async def test_all_six_query_params_combined(client: AsyncClient) -> None:
+    """All 6 query params together: completed, search, sort, order, page, per_page."""
+    r1 = await client.post("/todos", json={"title": "Buy apples"})
+    r2 = await client.post("/todos", json={"title": "Buy bananas"})
+    await client.post("/todos", json={"title": "Buy cherries"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    await client.post(f"/todos/{r1.json()['id']}/complete")
+    await client.post(f"/todos/{r2.json()['id']}/complete")
+    resp = await client.get(
+        "/todos",
+        params={
+            "completed": "true",
+            "search": "buy",
+            "sort": "title",
+            "order": "asc",
+            "page": "1",
+            "per_page": "1",
+        },
+    )
+    data = resp.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Buy apples"
+    assert data["page"] == 1
+    assert data["per_page"] == 1
+
+
+# --- Search with multiple LIKE wildcards ---
+
+
+@pytest.mark.asyncio
+async def test_search_with_percent_and_underscore(
+    client: AsyncClient,
+) -> None:
+    """Search containing both % and _ is treated as literal."""
+    await client.post("/todos", json={"title": "100%_done"})
+    await client.post("/todos", json={"title": "100Xdone"})
+    await client.post("/todos", json={"title": "Unrelated"})
+    resp = await client.get("/todos", params={"search": "100%_"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "100%_done"
+
+
+# --- Unicode search ---
+
+
+@pytest.mark.asyncio
+async def test_search_unicode_case_insensitive(client: AsyncClient) -> None:
+    """Search with Unicode characters is case-insensitive."""
+    await client.post("/todos", json={"title": "Caf\u00e9 latte"})
+    await client.post("/todos", json={"title": "Tea time"})
+    resp = await client.get("/todos", params={"search": "caf\u00e9"})
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Caf\u00e9 latte"
+
+
+# --- per_page=100 on page 2+ ---
+
+
+@pytest.mark.asyncio
+async def test_per_page_100_page_2_empty(client: AsyncClient) -> None:
+    """per_page=100 with only a few items, page 2 is empty."""
+    for i in range(3):
+        await client.post("/todos", json={"title": f"Item {i}"})
+    resp = await client.get("/todos", params={"page": "2", "per_page": "100"})
+    data = resp.json()
+    assert data["items"] == []
+    assert data["total"] == 3
+    assert data["page"] == 2
+
+
+# --- Envelope shape validation ---
+
+
+@pytest.mark.asyncio
+async def test_envelope_has_exactly_four_keys(client: AsyncClient) -> None:
+    """Paginated envelope response has exactly items, page, per_page, total."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"page": "1"})
+    data = resp.json()
+    assert set(data.keys()) == {"items", "page", "per_page", "total"}

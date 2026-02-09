@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 217 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 238 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -76,6 +76,23 @@ All sections implemented and tested. 217 tests passing, pyright strict clean, ru
 - **PUT explicit completed: false (1 test)**: PUT with `completed: false` explicitly sets completed to false.
 - **POST id field ignored (1 test)**: POST with `id: 999` in body is silently ignored; auto-generated id used instead.
 - **Total: 11 new tests**, bringing count from 206 to 217.
+
+## Test Coverage Hardening (0.0.13)
+
+- **Unicode title support (3 tests)**: Unicode characters accepted and preserved, emoji in titles, case-insensitive uniqueness with accented characters.
+- **Case-insensitive title reuse after deletion (1 test)**: After deleting "Buy Milk", creating "buy milk" succeeds.
+- **All 6 query params combined (1 test)**: completed+search+sort+order+page+per_page working together.
+- **Multiple LIKE wildcards in search (1 test)**: Search with both `%` and `_` treats them as literal characters.
+- **Unicode search (1 test)**: Case-insensitive search with Unicode characters (e.g., "café").
+- **PUT/PATCH id field in body ignored (2 tests)**: `id` field in PUT/PATCH body is silently ignored; path id used.
+- **PATCH completed:null with valid title (1 test)**: Type error on completed (priority 2) returned even when title is valid.
+- **Title type error before completed type error (2 tests)**: PUT/PATCH with both title and completed type errors returns title error first.
+- **Validation order: title:null with completed present (1 test)**: POST confirms title:null is "title is required" (missing), not type error.
+- **Very large path IDs on all endpoints (4 tests)**: PUT, PATCH, complete, incomplete all reject > 2^63-1.
+- **per_page=100 page 2 (1 test)**: High per_page with page beyond available items returns empty.
+- **Envelope shape validation (1 test)**: Paginated envelope has exactly {items, page, per_page, total}.
+- **PUT/PATCH title as list (2 tests)**: `title: []` returns 422 "title must be a string".
+- **Total: 21 new tests**, bringing count from 217 to 238.
 
 ## Architecture Notes
 

@@ -143,3 +143,33 @@ async def test_create_todo_title_500_after_trim(client: AsyncClient) -> None:
     resp = await client.post("/todos", json={"title": f"  {title_500}  "})
     assert resp.status_code == 201
     assert len(resp.json()["title"]) == 500
+
+
+# --- Unicode title tests ---
+
+
+@pytest.mark.asyncio
+async def test_create_todo_unicode_title(client: AsyncClient) -> None:
+    """Unicode characters in title are accepted and preserved."""
+    resp = await client.post("/todos", json={"title": "Acheter du lait"})
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "Acheter du lait"
+
+
+@pytest.mark.asyncio
+async def test_create_todo_unicode_emoji_title(client: AsyncClient) -> None:
+    """Emoji characters in title are accepted and preserved."""
+    resp = await client.post("/todos", json={"title": "Buy groceries \U0001f6d2"})
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "Buy groceries \U0001f6d2"
+
+
+@pytest.mark.asyncio
+async def test_create_todo_unicode_duplicate_case_insensitive(
+    client: AsyncClient,
+) -> None:
+    """Unicode title uniqueness is case-insensitive."""
+    await client.post("/todos", json={"title": "Caf\u00e9"})
+    resp = await client.post("/todos", json={"title": "caf\u00e9"})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"

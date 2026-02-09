@@ -74,3 +74,15 @@ async def test_deleted_id_not_reused(client: AsyncClient) -> None:
     await client.delete(f"/todos/{only_id}")
     r2 = await client.post("/todos", json={"title": "After delete"})
     assert r2.json()["id"] > only_id
+
+
+@pytest.mark.asyncio
+async def test_deleted_title_reusable_case_insensitive(
+    client: AsyncClient,
+) -> None:
+    """After deletion, the title can be reused with different casing."""
+    r = await client.post("/todos", json={"title": "Buy Milk"})
+    await client.delete(f"/todos/{r.json()['id']}")
+    resp = await client.post("/todos", json={"title": "buy milk"})
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "buy milk"

@@ -714,3 +714,73 @@ async def test_create_id_field_ignored(client: AsyncClient) -> None:
     get_resp = await client.get(f"/todos/{todo_id}")
     assert get_resp.status_code == 200
     assert get_resp.json()["title"] == "Test ID"
+
+
+# --- PUT/PATCH with id field in body (should be ignored) ---
+
+
+@pytest.mark.asyncio
+async def test_put_id_field_in_body_ignored(client: AsyncClient) -> None:
+    """PUT with id in body ignores it; uses path id."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Updated", "id": 999},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id
+    assert resp.json()["title"] == "Updated"
+
+
+@pytest.mark.asyncio
+async def test_patch_id_field_in_body_ignored(client: AsyncClient) -> None:
+    """PATCH with id in body ignores it; uses path id."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "Updated", "id": 999},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id
+    assert resp.json()["title"] == "Updated"
+
+
+# --- PATCH cross-field: completed:null with title also provided ---
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_null_with_title(client: AsyncClient) -> None:
+    """PATCH: completed:null type error (priority 2) even with valid title."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": None},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+# --- PUT/PATCH with list/object title types ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_list(client: AsyncClient) -> None:
+    """PUT with title: [] returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": []})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_list(client: AsyncClient) -> None:
+    """PATCH with title: [] returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": []})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
