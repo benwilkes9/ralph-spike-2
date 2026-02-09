@@ -1046,3 +1046,110 @@ async def test_patch_response_id_matches_path(
     resp = await client.patch(f"/todos/{todo_id}", json={"title": "Patched"})
     assert resp.status_code == 200
     assert resp.json()["id"] == todo_id
+
+
+# --- Operations on deleted IDs return 404 ---
+
+
+@pytest.mark.asyncio
+async def test_put_deleted_todo_returns_404(client: AsyncClient) -> None:
+    """PUT on a previously-deleted todo returns 404."""
+    r = await client.post("/todos", json={"title": "To delete"})
+    todo_id = r.json()["id"]
+    await client.delete(f"/todos/{todo_id}")
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "Updated"})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_patch_deleted_todo_returns_404(client: AsyncClient) -> None:
+    """PATCH on a previously-deleted todo returns 404."""
+    r = await client.post("/todos", json={"title": "To delete"})
+    todo_id = r.json()["id"]
+    await client.delete(f"/todos/{todo_id}")
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "New"})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_complete_deleted_todo_returns_404(
+    client: AsyncClient,
+) -> None:
+    """POST complete on a previously-deleted todo returns 404."""
+    r = await client.post("/todos", json={"title": "To delete"})
+    todo_id = r.json()["id"]
+    await client.delete(f"/todos/{todo_id}")
+    resp = await client.post(f"/todos/{todo_id}/complete")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_deleted_todo_returns_404(
+    client: AsyncClient,
+) -> None:
+    """POST incomplete on a previously-deleted todo returns 404."""
+    r = await client.post("/todos", json={"title": "To delete"})
+    todo_id = r.json()["id"]
+    await client.delete(f"/todos/{todo_id}")
+    resp = await client.post(f"/todos/{todo_id}/incomplete")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+# --- PATCH title + completed:false on completed todo ---
+
+
+@pytest.mark.asyncio
+async def test_patch_title_and_completed_false_together(
+    client: AsyncClient,
+) -> None:
+    """PATCH with title and completed:false on a completed todo."""
+    r = await client.post("/todos", json={"title": "Original"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "Updated", "completed": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Updated"
+    assert resp.json()["completed"] is False
+
+
+# --- Falsy non-None type errors ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_false(client: AsyncClient) -> None:
+    """PUT with title:false returns 422 type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": False})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_false(client: AsyncClient) -> None:
+    """PATCH with title:false returns 422 type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": False})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_put_completed_zero(client: AsyncClient) -> None:
+    """PUT with completed:0 returns 422 type error."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": 0},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"

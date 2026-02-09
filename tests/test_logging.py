@@ -111,11 +111,11 @@ async def test_duration_ms_is_non_negative_float(
     client: AsyncClient,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """duration_ms is a non-negative number."""
+    """duration_ms is a non-negative float."""
     with caplog.at_level(logging.INFO, logger="todo_api"):
         await client.get("/todos")
     entry = await _get_log_entry(caplog)
-    assert isinstance(entry["duration_ms"], int | float)
+    assert isinstance(entry["duration_ms"], float)
     assert entry["duration_ms"] >= 0
 
 
@@ -489,7 +489,7 @@ async def test_log_entry_field_types(
     assert isinstance(entry["path"], str)
     assert isinstance(entry["query_string"], str)
     assert isinstance(entry["status_code"], int)
-    assert isinstance(entry["duration_ms"], int | float)
+    assert isinstance(entry["duration_ms"], float)
 
 
 # --- Log entry has exactly the 5 spec-defined fields ---
@@ -511,3 +511,40 @@ async def test_log_entry_has_exactly_five_fields(
         "status_code",
         "duration_ms",
     }
+
+
+# --- Log entries for body validation and malformed JSON ---
+
+
+@pytest.mark.asyncio
+async def test_log_status_code_422_on_body_validation(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """422 status logged for POST body validation error."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        resp = await client.post("/todos", json={})
+    assert resp.status_code == 422
+    entry = await _get_log_entry(caplog)
+    assert entry["status_code"] == 422
+    assert entry["method"] == "POST"
+    assert entry["path"] == "/todos"
+
+
+@pytest.mark.asyncio
+async def test_log_entry_for_malformed_json(
+    client: AsyncClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """422 status logged for malformed JSON body."""
+    with caplog.at_level(logging.INFO, logger="todo_api"):
+        resp = await client.post(
+            "/todos",
+            content=b"not json",
+            headers={"Content-Type": "application/json"},
+        )
+    assert resp.status_code == 422
+    entry = await _get_log_entry(caplog)
+    assert entry["status_code"] == 422
+    assert entry["method"] == "POST"
+    assert entry["path"] == "/todos"

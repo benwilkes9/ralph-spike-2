@@ -126,6 +126,22 @@ async def test_create_todo_title_non_string(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_todo_title_false(client: AsyncClient) -> None:
+    """POST with title:false returns 422 type error."""
+    resp = await client.post("/todos", json={"title": False})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_create_todo_title_zero(client: AsyncClient) -> None:
+    """POST with title:0 returns 422 type error."""
+    resp = await client.post("/todos", json={"title": 0})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
 async def test_create_todo_duplicate_after_trim_and_case_fold(
     client: AsyncClient,
 ) -> None:

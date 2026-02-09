@@ -52,6 +52,39 @@ async def test_get_todo_by_id(
     assert resp.status_code == 200
     assert resp.json()["id"] == todo_id
     assert resp.json()["title"] == sample_todos[0]["title"]
+    assert resp.json()["completed"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_todo_completed_true(client: AsyncClient) -> None:
+    """GET /todos/{id} returns completed:true after marking complete."""
+    r = await client.post("/todos", json={"title": "Complete me"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    resp = await client.get(f"/todos/{todo_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == todo_id
+    assert resp.json()["title"] == "Complete me"
+    assert resp.json()["completed"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_todos_completed_values_accurate(
+    client: AsyncClient,
+) -> None:
+    """GET /todos plain array reflects accurate completed values."""
+    await client.post("/todos", json={"title": "Incomplete task"})
+    r2 = await client.post("/todos", json={"title": "Complete task"})
+    await client.post(f"/todos/{r2.json()['id']}/complete")
+    resp = await client.get("/todos")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    # Newest first
+    assert data[0]["title"] == "Complete task"
+    assert data[0]["completed"] is True
+    assert data[1]["title"] == "Incomplete task"
+    assert data[1]["completed"] is False
 
 
 @pytest.mark.asyncio

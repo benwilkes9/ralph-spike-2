@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 378 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 392 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -55,6 +55,19 @@ All CRUD endpoints (1.x-6.x), error handling (5.x), filtering/sorting/pagination
 - **404 before body validation (4)**: PUT/PATCH with valid non-existent ID + empty body or malformed JSON returns 404, not body validation error. Proves resource lookup precedes body parsing in the handler pipeline.
 - **Query param order: order before page (1)**: Invalid `order` + invalid `page` returns order error first. Completes the adjacent-pair coverage for the query param validation chain (completed→sort→order→page→per_page).
 - **Total: 5 new tests**, bringing count from 373 to 378.
+
+## Deep Spec Gap Audit (0.0.22)
+
+- **Audit-driven**: Opus deep analysis cross-referenced every spec line against all 378 tests. Found 14 test-only gaps (no implementation bugs).
+- **GET completed field assertions (2)**: `GET /todos/{id}` now asserts `completed` field for both false (fresh todo) and true (after `/complete`). Existing test lacked this assertion.
+- **Plain array completed values (1)**: `GET /todos` plain array verifies accurate `completed` values for mixed completed/incomplete todos.
+- **duration_ms strict float type (fix)**: Spec says `duration_ms` is `float`; tightened assertions from `int | float` to `float` in 2 tests.
+- **Operations on deleted IDs (4)**: PUT/PATCH/complete/incomplete on previously-deleted IDs all return 404 "Todo not found". Distinct from never-existed ID tests.
+- **PATCH title + completed:false (1)**: PATCH with both title change and `completed:false` on a completed todo verifies both fields update.
+- **Falsy non-None type errors (4)**: `title:false` for POST/PUT/PATCH and `title:0` for POST all return "title must be a string". Tests falsy values that aren't None.
+- **PUT completed:0 (1)**: PUT with `completed:0` returns "completed must be a boolean". Complements existing `completed:1` test.
+- **Log entries for body/JSON validation (2)**: POST body validation 422 and malformed JSON 422 both produce log entries. Covers different code paths than path validation 422.
+- **Total: 14 new tests**, bringing count from 378 to 392.
 
 ## Architecture Notes
 
