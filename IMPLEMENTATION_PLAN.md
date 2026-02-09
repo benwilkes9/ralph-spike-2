@@ -280,7 +280,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 10 -- List Filtering, Sorting, Search, and Pagination
 
-- [ ] **Extend `GET /todos` with query parameter support**
+- [x] **Extend `GET /todos` with query parameter support**
 
 **Description:** Modify the `GET /todos` handler to detect query parameters and switch behaviour:
 - **No query params:** Return plain JSON array (backward compatible, existing behaviour from Task 7).
