@@ -113,7 +113,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 5 -- Error Handling Utilities
 
-- [ ] **Implement consistent error responses and validation helpers**
+- [x] **Implement consistent error responses and validation helpers**
 
 **Description:** Create `src/ralf_spike_2/errors.py` with:
 - Override FastAPI's default `RequestValidationError` handler to return `{"detail": "..."}` with a single message following the validation order: missing -> type -> blank -> length -> uniqueness.
