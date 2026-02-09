@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 368 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 373 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -38,6 +38,16 @@ All CRUD endpoints (1.x-6.x), error handling (5.x), filtering/sorting/pagination
 - **Search exact full title (1)**: Full title string search returns the todo.
 - **Log entry for 405 (1)**: 405 responses produce log entries.
 - **Total: 25 new tests**, bringing count from 343 to 368.
+
+## Spec Gap Closure (0.0.20)
+
+- **Audit-driven**: Opus deep analysis cross-referenced every spec line against all 368 tests. Found 5 genuine gaps.
+- **POST /todos/{id} 405 (1)**: The single-item endpoint had no test for unsupported POST method.
+- **405 response body format (1)**: All 10 existing 405 tests checked only status code, not that the body uses `{"detail": "..."}` format per error-handling spec.
+- **Log entry field types (1)**: No explicit `isinstance` checks on `method` (str), `path` (str), `query_string` (str), `status_code` (int) per logging spec field type table.
+- **Log entry exact key set (1)**: No test that log entries contain exactly the 5 spec-defined fields and no extras.
+- **PUT completed:null only (1)**: PUT with only `completed:null` (no title) returns "title is required" (priority 1 missing before priority 2 type error).
+- **Total: 5 new tests**, bringing count from 368 to 373.
 
 ## Architecture Notes
 
