@@ -1,0 +1,235 @@
+"""Tests for error handling and validation cross-cutting concerns."""
+
+import pytest
+from httpx import AsyncClient
+
+# --- Consistent error format ---
+
+
+@pytest.mark.asyncio
+async def test_422_has_detail_string(client: AsyncClient) -> None:
+    """Every 422 response body has a detail key with a string value."""
+    resp = await client.post("/todos", json={})
+    assert resp.status_code == 422
+    data = resp.json()
+    assert "detail" in data
+    assert isinstance(data["detail"], str)
+
+
+@pytest.mark.asyncio
+async def test_404_has_detail_string(client: AsyncClient) -> None:
+    """Every 404 response body has a detail key with a string value."""
+    resp = await client.get("/todos/9999")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert "detail" in data
+    assert isinstance(data["detail"], str)
+
+
+@pytest.mark.asyncio
+async def test_409_has_detail_string(client: AsyncClient) -> None:
+    """Every 409 response body has a detail key with a string value."""
+    await client.post("/todos", json={"title": "Dup"})
+    resp = await client.post("/todos", json={"title": "Dup"})
+    assert resp.status_code == 409
+    data = resp.json()
+    assert "detail" in data
+    assert isinstance(data["detail"], str)
+
+
+@pytest.mark.asyncio
+async def test_no_errors_array_in_response(client: AsyncClient) -> None:
+    """No error response contains an errors array."""
+    resp = await client.post("/todos", json={})
+    data = resp.json()
+    assert "errors" not in data
+
+
+# --- Validation ordering ---
+
+
+@pytest.mark.asyncio
+async def test_missing_title_first(client: AsyncClient) -> None:
+    """Missing title error takes precedence over other checks."""
+    resp = await client.post("/todos", json={})
+    assert resp.status_code == 422
+    assert "required" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_type_error_before_blank(client: AsyncClient) -> None:
+    """Non-string title returns type error before blank check."""
+    resp = await client.post("/todos", json={"title": 123})
+    assert resp.status_code == 422
+    assert "string" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_blank_before_length(client: AsyncClient) -> None:
+    """Whitespace-only title returns blank error before length check."""
+    resp = await client.post("/todos", json={"title": "   "})
+    assert resp.status_code == 422
+    assert "blank" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_length_before_uniqueness(client: AsyncClient) -> None:
+    """Over-length title returns length error before uniqueness check."""
+    await client.post("/todos", json={"title": "a" * 500})
+    resp = await client.post("/todos", json={"title": "a" * 501})
+    assert resp.status_code == 422
+    assert "500" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_single_error_per_request(client: AsyncClient) -> None:
+    """Only one error is returned per request."""
+    resp = await client.post("/todos", json={})
+    data = resp.json()
+    assert isinstance(data["detail"], str)
+
+
+# --- Unknown field handling ---
+
+
+@pytest.mark.asyncio
+async def test_create_ignores_extra_fields(client: AsyncClient) -> None:
+    """POST /todos with extra fields creates the todo."""
+    resp = await client.post("/todos", json={"title": "Test", "priority": 1})
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_put_ignores_extra_fields(client: AsyncClient) -> None:
+    """PUT with extra fields updates normally."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "New", "extra": "field"},
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_patch_only_unknown_returns_422(client: AsyncClient) -> None:
+    """PATCH with only unknown fields returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"unknown_field": "value"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_known_and_unknown_succeeds(client: AsyncClient) -> None:
+    """PATCH with known and unknown fields succeeds."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(
+        f"/todos/{todo_id}",
+        json={"title": "New", "unknown_field": "value"},
+    )
+    assert resp.status_code == 200
+
+
+# --- Type mismatch handling ---
+
+
+@pytest.mark.asyncio
+async def test_create_title_integer(client: AsyncClient) -> None:
+    """POST /todos with title: 123 returns 422."""
+    resp = await client.post("/todos", json={"title": 123})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_title_null(client: AsyncClient) -> None:
+    """POST /todos with title: null returns 422."""
+    resp = await client.post("/todos", json={"title": None})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_put_completed_string(client: AsyncClient) -> None:
+    """PUT with completed: 'yes' returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": "yes"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_string(client: AsyncClient) -> None:
+    """PATCH with completed: 'yes' returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": "yes"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_non_integer_path(client: AsyncClient) -> None:
+    """GET /todos/abc returns 422."""
+    resp = await client.get("/todos/abc")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_non_integer_path(client: AsyncClient) -> None:
+    """DELETE /todos/abc returns 422."""
+    resp = await client.delete("/todos/abc")
+    assert resp.status_code == 422
+
+
+# --- Path parameter validation ---
+
+
+@pytest.mark.asyncio
+async def test_get_zero_id(client: AsyncClient) -> None:
+    """GET /todos/0 returns 422."""
+    resp = await client.get("/todos/0")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_put_negative_id(client: AsyncClient) -> None:
+    """PUT /todos/-1 returns 422."""
+    resp = await client.put("/todos/-1", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_patch_float_id(client: AsyncClient) -> None:
+    """PATCH /todos/1.5 returns 422."""
+    resp = await client.patch("/todos/1.5", json={"title": "Test"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_delete_abc_id(client: AsyncClient) -> None:
+    """DELETE /todos/abc returns 422."""
+    resp = await client.delete("/todos/abc")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_abc_id(client: AsyncClient) -> None:
+    """POST /todos/abc/complete returns 422."""
+    resp = await client.post("/todos/abc/complete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_zero_id(client: AsyncClient) -> None:
+    """POST /todos/0/incomplete returns 422."""
+    resp = await client.post("/todos/0/incomplete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
