@@ -34,7 +34,22 @@ JQ_FILTER='
       if .type == "text" then
         ("\u001b[1m\u001b[37m" + .text + "\u001b[0m")
       elif .type == "tool_use" then
-        ("  \u001b[36m" + .name + "\u001b[0m \u001b[2m" + (.input | keys | join(", ")) + "\u001b[0m")
+        if .name == "Task" then
+          ("  \u001b[1;36m\u25b6 " + (.input.subagent_type // .input.sub_agent_type // "agent") + "\u001b[0m  \u001b[37m\"" + (.input.description // "\u2014") + "\"\u001b[0m" +
+            (if .input.model then "  \u001b[2mmodel=\u001b[0m" + .input.model else "" end) +
+            (if .input.max_turns then "  \u001b[2mmax_turns=\u001b[0m" + (.input.max_turns | tostring) else "" end))
+        else
+          ("  \u001b[2m\u00b7 " + .name + " " +
+            ((if .input.file_path then (.input.file_path | tostring)
+              elif .input.description then (.input.description | tostring)
+              elif .input.command then (.input.command | tostring)
+              elif .input.pattern then (.input.pattern | tostring)
+              elif .input.query then (.input.query | tostring)
+              elif .input.url then (.input.url | tostring)
+              elif .input.skill then (.input.skill | tostring)
+              else (.input | keys | join(", "))
+              end) | if length > 60 then .[:60] + "\u2026" else . end) + "\u001b[0m")
+        end
       else empty end
     ) // empty
 
