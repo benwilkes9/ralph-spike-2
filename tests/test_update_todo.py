@@ -92,6 +92,7 @@ async def test_put_duplicate_title(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.put(f"/todos/{todo_id}", json={"title": "existing"})
     assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
 
 
 @pytest.mark.asyncio
@@ -108,6 +109,7 @@ async def test_put_not_found(client: AsyncClient) -> None:
     """PUT with a non-existent id returns 404."""
     resp = await client.put("/todos/9999", json={"title": "Test"})
     assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
 
 
 @pytest.mark.asyncio
@@ -244,6 +246,7 @@ async def test_patch_not_found(client: AsyncClient) -> None:
     """PATCH with a non-existent id returns 404."""
     resp = await client.patch("/todos/9999", json={"title": "Test"})
     assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
 
 
 @pytest.mark.asyncio
@@ -333,6 +336,7 @@ async def test_complete_not_found(client: AsyncClient) -> None:
     """POST /todos/{id}/complete returns 404 for non-existent id."""
     resp = await client.post("/todos/9999/complete")
     assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
 
 
 @pytest.mark.asyncio
@@ -340,6 +344,7 @@ async def test_incomplete_not_found(client: AsyncClient) -> None:
     """POST /todos/{id}/incomplete returns 404 for non-existent id."""
     resp = await client.post("/todos/9999/incomplete")
     assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
 
 
 @pytest.mark.asyncio
@@ -347,6 +352,7 @@ async def test_complete_non_integer_id(client: AsyncClient) -> None:
     """POST /todos/{id}/complete returns 422 for non-integer id."""
     resp = await client.post("/todos/abc/complete")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -508,3 +514,146 @@ async def test_incomplete_float_id(client: AsyncClient) -> None:
     resp = await client.post("/todos/1.5/incomplete")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- Missing edge cases: non-integer and negative IDs ---
+
+
+@pytest.mark.asyncio
+async def test_incomplete_non_integer_id(client: AsyncClient) -> None:
+    """POST /todos/abc/incomplete returns 422."""
+    resp = await client.post("/todos/abc/incomplete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_complete_negative_id(client: AsyncClient) -> None:
+    """POST /todos/-1/complete returns 422."""
+    resp = await client.post("/todos/-1/complete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_negative_id(client: AsyncClient) -> None:
+    """POST /todos/-1/incomplete returns 422."""
+    resp = await client.post("/todos/-1/incomplete")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+# --- PUT/PATCH title exactly 500 chars accepted ---
+
+
+@pytest.mark.asyncio
+async def test_put_title_exactly_500(client: AsyncClient) -> None:
+    """PUT with title of exactly 500 characters is accepted."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "a" * 500})
+    assert resp.status_code == 200
+    assert len(resp.json()["title"]) == 500
+
+
+@pytest.mark.asyncio
+async def test_patch_title_exactly_500(client: AsyncClient) -> None:
+    """PATCH with title of exactly 500 characters is accepted."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "b" * 500})
+    assert resp.status_code == 200
+    assert len(resp.json()["title"]) == 500
+
+
+# --- PUT validation order: missing title before bad completed ---
+
+
+@pytest.mark.asyncio
+async def test_put_missing_title_before_bad_completed(
+    client: AsyncClient,
+) -> None:
+    """PUT: missing title (priority 1) before bad completed type (priority 2)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"completed": "yes"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+# --- Response shape for all update endpoints ---
+
+
+@pytest.mark.asyncio
+async def test_put_response_shape(client: AsyncClient) -> None:
+    """PUT response contains exactly id, title, completed."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "Updated"})
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+@pytest.mark.asyncio
+async def test_patch_response_shape(client: AsyncClient) -> None:
+    """PATCH response contains exactly id, title, completed."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "Updated"})
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+@pytest.mark.asyncio
+async def test_complete_response_shape(client: AsyncClient) -> None:
+    """POST /todos/{id}/complete response has exactly {id, title, completed}."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.post(f"/todos/{todo_id}/complete")
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+@pytest.mark.asyncio
+async def test_incomplete_response_shape(client: AsyncClient) -> None:
+    """POST /todos/{id}/incomplete response has exactly {id, title, completed}."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.post(f"/todos/{todo_id}/incomplete")
+    assert set(resp.json().keys()) == {"id", "title", "completed"}
+
+
+# --- PUT/PATCH title uniqueness after trim ---
+
+
+@pytest.mark.asyncio
+async def test_put_trim_then_uniqueness(client: AsyncClient) -> None:
+    """PUT: title duplicate after trimming returns 409."""
+    await client.post("/todos", json={"title": "Existing"})
+    r = await client.post("/todos", json={"title": "Other"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": "  Existing  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
+
+
+@pytest.mark.asyncio
+async def test_patch_trim_then_uniqueness(client: AsyncClient) -> None:
+    """PATCH: title duplicate after trimming returns 409."""
+    await client.post("/todos", json={"title": "Existing"})
+    r = await client.post("/todos", json={"title": "Other"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": "  Existing  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
+
+
+# --- PUT omitting completed resets to false, verified by GET ---
+
+
+@pytest.mark.asyncio
+async def test_put_reset_completed_persists(client: AsyncClient) -> None:
+    """PUT omitting completed resets to false; verified via GET."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    await client.post(f"/todos/{todo_id}/complete")
+    await client.put(f"/todos/{todo_id}", json={"title": "Test"})
+    resp = await client.get(f"/todos/{todo_id}")
+    assert resp.json()["completed"] is False

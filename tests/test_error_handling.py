@@ -118,6 +118,7 @@ async def test_patch_only_unknown_returns_422(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"unknown_field": "value"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "At least one field must be provided"
 
 
 @pytest.mark.asyncio
@@ -140,6 +141,7 @@ async def test_create_title_integer(client: AsyncClient) -> None:
     """POST /todos with title: 123 returns 422."""
     resp = await client.post("/todos", json={"title": 123})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
 
 
 @pytest.mark.asyncio
@@ -160,6 +162,7 @@ async def test_put_completed_string(client: AsyncClient) -> None:
         json={"title": "Valid", "completed": "yes"},
     )
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
 
 
 @pytest.mark.asyncio
@@ -169,6 +172,7 @@ async def test_patch_completed_string(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"completed": "yes"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
 
 
 @pytest.mark.asyncio
@@ -176,6 +180,7 @@ async def test_get_non_integer_path(client: AsyncClient) -> None:
     """GET /todos/abc returns 422."""
     resp = await client.get("/todos/abc")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -183,6 +188,7 @@ async def test_delete_non_integer_path(client: AsyncClient) -> None:
     """DELETE /todos/abc returns 422."""
     resp = await client.delete("/todos/abc")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 # --- Path parameter validation ---
@@ -420,3 +426,62 @@ async def test_create_missing_title_before_bad_completed(
     resp = await client.post("/todos", json={"completed": "yes"})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title is required"
+
+
+# --- Non-string title types beyond integer ---
+
+
+@pytest.mark.asyncio
+async def test_create_title_boolean(client: AsyncClient) -> None:
+    """POST /todos with title: true returns 422."""
+    resp = await client.post("/todos", json={"title": True})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_create_title_list(client: AsyncClient) -> None:
+    """POST /todos with title: [] returns 422."""
+    resp = await client.post("/todos", json={"title": []})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_create_title_object(client: AsyncClient) -> None:
+    """POST /todos with title: {} returns 422."""
+    resp = await client.post("/todos", json={"title": {}})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_put_title_boolean(client: AsyncClient) -> None:
+    """PUT with title: true returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": True})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_boolean(client: AsyncClient) -> None:
+    """PATCH with title: true returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": True})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+# --- GET /todos list item shape ---
+
+
+@pytest.mark.asyncio
+async def test_list_todos_item_shape(client: AsyncClient) -> None:
+    """GET /todos list items have exactly {id, title, completed}."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos")
+    for item in resp.json():
+        assert set(item.keys()) == {"id", "title", "completed"}

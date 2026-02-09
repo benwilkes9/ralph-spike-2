@@ -587,3 +587,230 @@ async def test_title_interior_whitespace_preserved(
     resp = await client.post("/todos", json={"title": "  hello   world  "})
     assert resp.status_code == 201
     assert resp.json()["title"] == "hello   world"
+
+
+# --- completed filter case sensitivity ---
+
+
+@pytest.mark.asyncio
+async def test_filter_completed_uppercase_true(client: AsyncClient) -> None:
+    """GET /todos?completed=TRUE returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"completed": "TRUE"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
+
+
+@pytest.mark.asyncio
+async def test_filter_completed_title_case(client: AsyncClient) -> None:
+    """GET /todos?completed=True returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"completed": "True"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
+
+
+@pytest.mark.asyncio
+async def test_filter_completed_zero(client: AsyncClient) -> None:
+    """GET /todos?completed=0 returns 422."""
+    resp = await client.get("/todos", params={"completed": "0"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
+
+
+# --- sort/order case sensitivity ---
+
+
+@pytest.mark.asyncio
+async def test_sort_uppercase_invalid(client: AsyncClient) -> None:
+    """GET /todos?sort=ID returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"sort": "ID"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "sort must be 'id' or 'title'"
+
+
+@pytest.mark.asyncio
+async def test_order_uppercase_invalid(client: AsyncClient) -> None:
+    """GET /todos?order=ASC returns 422 (case-sensitive)."""
+    resp = await client.get("/todos", params={"order": "ASC"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "order must be 'asc' or 'desc'"
+
+
+# --- Envelope total reflects filtered count ---
+
+
+@pytest.mark.asyncio
+async def test_envelope_total_with_completed_filter(
+    client: AsyncClient,
+) -> None:
+    """Envelope total reflects filtered count, not total DB count."""
+    r1 = await client.post("/todos", json={"title": "A"})
+    await client.post("/todos", json={"title": "B"})
+    await client.post("/todos", json={"title": "C"})
+    await client.post(f"/todos/{r1.json()['id']}/complete")
+    resp = await client.get("/todos", params={"completed": "true", "page": "1"})
+    data = resp.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_envelope_total_with_search_filter(
+    client: AsyncClient,
+) -> None:
+    """Envelope total reflects search-filtered count."""
+    await client.post("/todos", json={"title": "Buy milk"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    await client.post("/todos", json={"title": "Buy bread"})
+    resp = await client.get("/todos", params={"search": "buy", "page": "1"})
+    data = resp.json()
+    assert data["total"] == 2
+
+
+# --- Default page and per_page ---
+
+
+@pytest.mark.asyncio
+async def test_default_per_page_is_10(client: AsyncClient) -> None:
+    """When only page param given, per_page defaults to 10."""
+    for i in range(12):
+        await client.post("/todos", json={"title": f"Item {i}"})
+    resp = await client.get("/todos", params={"page": "1"})
+    data = resp.json()
+    assert data["per_page"] == 10
+    assert len(data["items"]) == 10
+    assert data["total"] == 12
+
+
+@pytest.mark.asyncio
+async def test_default_page_is_1(client: AsyncClient) -> None:
+    """When only per_page param given, page defaults to 1."""
+    for i in range(3):
+        await client.post("/todos", json={"title": f"Item {i}"})
+    resp = await client.get("/todos", params={"per_page": "2"})
+    data = resp.json()
+    assert data["page"] == 1
+    assert len(data["items"]) == 2
+
+
+# --- Last partial page ---
+
+
+@pytest.mark.asyncio
+async def test_pagination_last_partial_page(client: AsyncClient) -> None:
+    """Last page with fewer items than per_page returns correct count."""
+    for i in range(5):
+        await client.post("/todos", json={"title": f"Item {i}"})
+    resp = await client.get(
+        "/todos",
+        params={"page": "2", "per_page": "3", "sort": "id", "order": "asc"},
+    )
+    data = resp.json()
+    assert len(data["items"]) == 2
+    assert data["total"] == 5
+    assert data["page"] == 2
+
+
+# --- Search combined with sort ---
+
+
+@pytest.mark.asyncio
+async def test_search_combined_with_sort(client: AsyncClient) -> None:
+    """Search and sort can be combined."""
+    await client.post("/todos", json={"title": "Buy bananas"})
+    await client.post("/todos", json={"title": "Buy apples"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    resp = await client.get(
+        "/todos",
+        params={"search": "buy", "sort": "title", "order": "asc"},
+    )
+    data = resp.json()
+    assert len(data["items"]) == 2
+    titles = [t["title"] for t in data["items"]]
+    assert titles == ["Buy apples", "Buy bananas"]
+
+
+# --- Search combined with pagination ---
+
+
+@pytest.mark.asyncio
+async def test_search_combined_with_pagination(
+    client: AsyncClient,
+) -> None:
+    """Search with pagination returns correct page of results."""
+    await client.post("/todos", json={"title": "Buy apples"})
+    await client.post("/todos", json={"title": "Buy bananas"})
+    await client.post("/todos", json={"title": "Buy cherries"})
+    await client.post("/todos", json={"title": "Walk dog"})
+    resp = await client.get(
+        "/todos",
+        params={
+            "search": "buy",
+            "page": "1",
+            "per_page": "2",
+            "sort": "id",
+            "order": "asc",
+        },
+    )
+    data = resp.json()
+    assert data["total"] == 3
+    assert len(data["items"]) == 2
+
+
+# --- completed filter combined with sort ---
+
+
+@pytest.mark.asyncio
+async def test_completed_filter_with_sort(client: AsyncClient) -> None:
+    """Completed filter combined with sort works correctly."""
+    r1 = await client.post("/todos", json={"title": "Charlie"})
+    r2 = await client.post("/todos", json={"title": "Alpha"})
+    await client.post("/todos", json={"title": "Bravo"})
+    await client.post(f"/todos/{r1.json()['id']}/complete")
+    await client.post(f"/todos/{r2.json()['id']}/complete")
+    resp = await client.get(
+        "/todos",
+        params={
+            "completed": "true",
+            "sort": "title",
+            "order": "asc",
+        },
+    )
+    data = resp.json()
+    titles = [t["title"] for t in data["items"]]
+    assert titles == ["Alpha", "Charlie"]
+
+
+# --- completed filter combined with pagination ---
+
+
+@pytest.mark.asyncio
+async def test_completed_filter_with_pagination(
+    client: AsyncClient,
+) -> None:
+    """Completed filter with pagination returns correct results."""
+    for i in range(5):
+        r = await client.post("/todos", json={"title": f"Task {i}"})
+        if i % 2 == 0:
+            await client.post(f"/todos/{r.json()['id']}/complete")
+    resp = await client.get(
+        "/todos",
+        params={"completed": "true", "page": "1", "per_page": "2"},
+    )
+    data = resp.json()
+    assert data["total"] == 3
+    assert len(data["items"]) == 2
+    for item in data["items"]:
+        assert item["completed"] is True
+
+
+# --- Paginated list item shape ---
+
+
+@pytest.mark.asyncio
+async def test_paginated_list_item_shape(client: AsyncClient) -> None:
+    """Paginated list items have exactly {id, title, completed}."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"page": "1"})
+    data = resp.json()
+    for item in data["items"]:
+        assert set(item.keys()) == {"id", "title", "completed"}

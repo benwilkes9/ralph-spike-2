@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 172 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 206 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -47,6 +47,25 @@ All sections implemented and tested. 172 tests passing, pyright strict clean, ru
 - **PUT handler uses raw body directly**: Removed dependency on `TodoUpdate` Pydantic schema; PUT now validates directly from raw body dict like PATCH, ensuring consistent null/type handling.
 - **Removed unused `TodoUpdate` schema**: No longer needed since PUT validates raw body directly.
 - **New tests (23)**: Invalid JSON body (POST/PUT/PATCH), non-object JSON body (POST/PUT/PATCH), very large path IDs (GET/DELETE), PUT completed:null returns 422, response shape validation, missing title priority over bad completed, backslash in search, sort/order defaults, combined filter+sort+paginate, double-delete returns 404, interior whitespace preserved, float ID validation across all endpoints.
+
+## Test Coverage Hardening (0.0.11)
+
+- **Exact error string assertions**: Tightened 12 existing tests that only checked status codes to also verify exact error message strings per spec (PUT/PATCH not found, duplicate title, complete/incomplete not found and non-integer ID, type mismatch assertions in error_handling tests).
+- **Missing endpoint edge cases (3 tests)**: `POST /todos/abc/incomplete` (non-integer), `POST /todos/-1/complete` (negative), `POST /todos/-1/incomplete` (negative) — all now return 422 with "id must be a positive integer".
+- **PUT/PATCH title boundary (2 tests)**: Exactly 500 characters accepted for both PUT and PATCH.
+- **PUT validation order (1 test)**: Missing title (priority 1) before bad completed type (priority 2) on PUT.
+- **Response shape validation (4 tests)**: PUT, PATCH, complete, and incomplete endpoints return exactly `{id, title, completed}`.
+- **Title uniqueness after trim (2 tests)**: PUT/PATCH with whitespace-padded duplicate title returns 409.
+- **PUT reset persistence (1 test)**: PUT omitting completed resets to false, verified via subsequent GET.
+- **Non-string title types (5 tests)**: Boolean, list, and object title types for POST/PUT/PATCH.
+- **GET /todos list item shape (2 tests)**: Plain array and paginated items have exactly `{id, title, completed}`.
+- **Filter case sensitivity (3 tests)**: `completed=TRUE`, `completed=True`, `completed=0` all return 422.
+- **Sort/order case sensitivity (2 tests)**: `sort=ID`, `order=ASC` return 422.
+- **Envelope total with filters (2 tests)**: Total reflects filtered count (completed filter, search filter).
+- **Default page/per_page (2 tests)**: Default per_page=10 when only page given, default page=1 when only per_page given.
+- **Last partial page (1 test)**: Page with fewer items than per_page returns correct count.
+- **Combination tests (4 tests)**: Search+sort, search+pagination, completed+sort, completed+pagination.
+- **Total: 34 new/tightened tests**, bringing count from 172 to 206.
 
 ## Architecture Notes
 
