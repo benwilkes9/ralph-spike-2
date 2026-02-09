@@ -69,7 +69,7 @@ No new spec files need to be created. The existing specs are sufficient for impl
 
 ### Task 3 -- Application Scaffold
 
-- [ ] **Create FastAPI application entry point with lifespan and health endpoint**
+- [x] **Create FastAPI application entry point with lifespan and health endpoint**
 
 **Description:** Create `src/ralf_spike_2/app.py` with:
 - FastAPI app instance with lifespan handler that calls `create_tables()` on startup
