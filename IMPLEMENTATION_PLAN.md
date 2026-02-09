@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 206 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 217 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -66,6 +66,16 @@ All sections implemented and tested. 206 tests passing, pyright strict clean, ru
 - **Last partial page (1 test)**: Page with fewer items than per_page returns correct count.
 - **Combination tests (4 tests)**: Search+sort, search+pagination, completed+sort, completed+pagination.
 - **Total: 34 new/tightened tests**, bringing count from 172 to 206.
+
+## Test Coverage Hardening (0.0.12)
+
+- **Empty string query param validation (4 tests)**: `sort=""`, `order=""`, `page=""`, `per_page=""` all return 422 with correct error messages.
+- **Substring middle match (1 test)**: Search for "milk" in "Buy milk please" verifies substring matching works in the middle of a title, not just prefix.
+- **Additional completed filter case sensitivity (2 tests)**: `completed=FALSE` and `completed=False` return 422.
+- **Empty string title (2 tests)**: PUT and PATCH with `title: ""` return 422 "title must not be blank".
+- **PUT explicit completed: false (1 test)**: PUT with `completed: false` explicitly sets completed to false.
+- **POST id field ignored (1 test)**: POST with `id: 999` in body is silently ignored; auto-generated id used instead.
+- **Total: 11 new tests**, bringing count from 206 to 217.
 
 ## Architecture Notes
 
