@@ -61,7 +61,7 @@
 ## 3. Core CRUD Endpoints
 
 ### 3.1 Create Todo — POST /todos
-- **Description:** Implement the `POST /todos` endpoint in a router module (e.g., `src/ralf_spike_2/routes.py` or `src/ralf_spike_2/routers/todos.py`). Accept a JSON body with `title` (string, required). Trim leading/trailing whitespace from `title` before any validation. Validate in order: missing title, whitespace-only/blank, length > 500, case-insensitive uniqueness. The `completed` field is never accepted on create and always defaults to `false`. Return 201 with the full todo object on success. Return appropriate error responses (422, 409) on failure. Unknown fields in the request body are silently ignored.
+- **Description:** Implement the `POST /todos` endpoint in a router module (e.g., `src/ralf_spike_2/routes.py` or `src/ralf_spike_2/routers/todos.py`). Accept a JSON body with `title` (string, required). Trim leading/trailing whitespace from `title` before any validation. Validate in order: missing title, type/format errors, whitespace-only/blank, length > 500, case-insensitive uniqueness. The `completed` field is never accepted on create and always defaults to `false`. Return 201 with the full todo object on success. Return appropriate error responses (422, 409) on failure. Unknown fields in the request body are silently ignored.
 - **Spec(s):** create-todo.md, error-handling.md, data-model.md
 - **Tests:**
   - [ ] A valid POST with a title creates a todo and returns 201 with `id`, `title`, and `completed`
@@ -120,7 +120,7 @@
   - [ ] PATCH with only `title` updates the title and leaves `completed` unchanged
   - [ ] PATCH with only `completed` updates completed status and leaves `title` unchanged
   - [ ] PATCH with both `title` and `completed` updates both fields
-  - [ ] PATCH with no recognized fields returns 422 with detail "At least one field must be provided"
+  - [ ] PATCH with empty body `{}` returns 422 with detail "At least one field must be provided"
   - [ ] PATCH with only unknown fields (e.g., `{"foo": "bar"}`) returns 422
   - [ ] PATCH with blank/whitespace-only `title` returns 422
   - [ ] PATCH with `title` exceeding 500 characters returns 422
@@ -206,6 +206,7 @@
   - [ ] `GET /todos?page=-1` returns 422
   - [ ] `GET /todos?page=abc` returns 422
   - [ ] `GET /todos?per_page=0` returns 422
+  - [ ] `GET /todos?per_page=-1` returns 422
   - [ ] `GET /todos?per_page=101` returns 422
   - [ ] `GET /todos?per_page=abc` returns 422
 - **Status:** [ ]
@@ -218,6 +219,8 @@
   - [ ] `GET /todos?page=1` returns the envelope format with `items`, `page`, `per_page`, and `total` keys
   - [ ] `GET /todos?completed=false` returns the envelope format
   - [ ] `GET /todos?search=` returns the envelope format (even though search is empty, a param is present)
+  - [ ] `GET /todos?sort=title` returns the envelope format (sort param alone triggers envelope)
+  - [ ] `GET /todos?order=asc` returns the envelope format (order param alone triggers envelope)
   - [ ] The `total` field reflects the count of matching items before pagination
   - [ ] The `page` and `per_page` fields in the response match the requested values (or defaults)
 - **Status:** [ ]
