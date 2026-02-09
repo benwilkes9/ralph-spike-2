@@ -17,7 +17,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Non-root user
 RUN useradd -m -s /bin/bash claude \
-    && mkdir -p /home/claude/.claude /workspace \
+    && mkdir -p /home/claude/.claude /workspace/repo \
     && chown -R claude:claude /home/claude /workspace
 
 # ═════════════════════════════════════════════════════════════════
