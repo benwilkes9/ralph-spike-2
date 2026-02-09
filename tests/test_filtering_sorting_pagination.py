@@ -1190,3 +1190,16 @@ async def test_search_exact_full_title_match(
     data = resp.json()
     assert data["total"] == 1
     assert data["items"][0]["title"] == "Buy milk"
+
+
+# --- Query param validation order: order before page ---
+
+
+@pytest.mark.asyncio
+async def test_order_error_before_page_error(
+    client: AsyncClient,
+) -> None:
+    """Invalid order is reported before invalid page."""
+    resp = await client.get("/todos", params={"order": "INVALID", "page": "abc"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "order must be 'asc' or 'desc'"

@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 373 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 378 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -48,6 +48,13 @@ All CRUD endpoints (1.x-6.x), error handling (5.x), filtering/sorting/pagination
 - **Log entry exact key set (1)**: No test that log entries contain exactly the 5 spec-defined fields and no extras.
 - **PUT completed:null only (1)**: PUT with only `completed:null` (no title) returns "title is required" (priority 1 missing before priority 2 type error).
 - **Total: 5 new tests**, bringing count from 368 to 373.
+
+## Validation Precedence Test Hardening (0.0.21)
+
+- **Audit-driven**: Opus deep analysis found 2 genuine gaps in validation precedence coverage.
+- **404 before body validation (4)**: PUT/PATCH with valid non-existent ID + empty body or malformed JSON returns 404, not body validation error. Proves resource lookup precedes body parsing in the handler pipeline.
+- **Query param order: order before page (1)**: Invalid `order` + invalid `page` returns order error first. Completes the adjacent-pair coverage for the query param validation chain (completed→sort→order→page→per_page).
+- **Total: 5 new tests**, bringing count from 373 to 378.
 
 ## Architecture Notes
 

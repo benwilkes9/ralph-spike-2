@@ -1420,3 +1420,54 @@ async def test_put_completed_null_only_returns_title_required(
     resp = await client.put(f"/todos/{todo_id}", json={"completed": None})
     assert resp.status_code == 422
     assert resp.json()["detail"] == "title is required"
+
+
+# --- 404 before body validation for valid-but-non-existent IDs ---
+
+
+@pytest.mark.asyncio
+async def test_put_not_found_before_body_validation(
+    client: AsyncClient,
+) -> None:
+    """PUT with valid non-existent ID returns 404 before body errors."""
+    resp = await client.put("/todos/9999", json={})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_patch_not_found_before_body_validation(
+    client: AsyncClient,
+) -> None:
+    """PATCH with valid non-existent ID returns 404 before body errors."""
+    resp = await client.patch("/todos/9999", json={})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_put_not_found_before_malformed_json(
+    client: AsyncClient,
+) -> None:
+    """PUT with valid non-existent ID + malformed JSON returns 404."""
+    resp = await client.put(
+        "/todos/9999",
+        content=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
+
+
+@pytest.mark.asyncio
+async def test_patch_not_found_before_malformed_json(
+    client: AsyncClient,
+) -> None:
+    """PATCH with valid non-existent ID + malformed JSON returns 404."""
+    resp = await client.patch(
+        "/todos/9999",
+        content=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Todo not found"
