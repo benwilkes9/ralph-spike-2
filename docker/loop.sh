@@ -28,6 +28,7 @@ JQ_FILTER='
   def green: "\u001b[32m" + . + "\u001b[0m";
   def red:   "\u001b[1;31m" + . + "\u001b[0m";
   def dim:   "\u001b[2m" + . + "\u001b[0m";
+  def kfmt:  if . >= 1000 then ((. / 100 | floor) / 10 | tostring) + "k" else tostring end;
 
   if .type == "assistant" then
     (.message.content[]? |
@@ -53,15 +54,17 @@ JQ_FILTER='
       else empty end
     ) // empty
 
-  elif .type == "tool_use_result" then
-    if .tool_use_result.status == "completed" then
-      ("  " + ("  \u2713 " | green) + ((.tool_use_result.totalDurationMs // 0 | . / 1000 | tostring) + "s, " + (.tool_use_result.totalToolUseCount // 0 | tostring) + " tool calls" | dim))
-    else
-      ("  " + ("  \u2717 " + (.tool_use_result.status // "unknown") | red))
-    end
+  elif .type == "user" then
+    (if .tool_use_result.totalTokens then
+      if .tool_use_result.status == "completed" then
+        ("  " + ("  \u2713 " | green) + ((.tool_use_result.totalDurationMs // 0 | . / 1000 | tostring) + "s, " + (.tool_use_result.totalToolUseCount // 0 | tostring) + " tool calls, " + (.tool_use_result.totalTokens // 0 | kfmt) + " tokens" | dim))
+      else
+        ("  " + ("  \u2717 " + (.tool_use_result.status // "unknown") | red))
+      end
+    else empty end) // empty
 
   elif .type == "result" then
-    "\n\u001b[2m\u2500\u2500\u2500 turn complete \u2500\u2500\u2500 cost=\u001b[0m\u001b[35m$" + (.total_cost_usd // 0 | tostring) + "\u001b[0m\u001b[2m  in=" + (.usage.input_tokens // 0 | tostring) + "  out=" + (.usage.output_tokens // 0 | tostring) + "\u001b[0m\n"
+    "\n\u001b[2m\u2500\u2500\u2500 turn complete \u2500\u2500\u2500 cost=\u001b[0m\u001b[35m$" + ((.cost_usd // .total_cost_usd // 0) | tostring) + "\u001b[0m\u001b[2m  in=" + (.usage.input_tokens // 0 | tostring) + "  out=" + (.usage.output_tokens // 0 | tostring) + "\u001b[0m\n"
 
   else empty end
 '
@@ -70,6 +73,7 @@ JQ_FILTER='
 TOTAL_COST=0
 TOTAL_INPUT_TOKENS=0
 TOTAL_OUTPUT_TOKENS=0
+TOTAL_SUBAGENT_TOKENS=0
 TOTAL_ITERATIONS=0
 START_TIME=$SECONDS
 
@@ -87,6 +91,7 @@ print_summary() {
     printf  "${BBLUE}│${RST}  ${DIM}Wall time${RST}     ${BWHITE}%-20s${RST} ${BBLUE}│${RST}\n" "${mins}m ${secs}s"
     printf  "${BBLUE}│${RST}  ${DIM}Input tokens${RST}  ${CYAN}%-20s${RST} ${BBLUE}│${RST}\n" "$TOTAL_INPUT_TOKENS"
     printf  "${BBLUE}│${RST}  ${DIM}Output tokens${RST} ${CYAN}%-20s${RST} ${BBLUE}│${RST}\n" "$TOTAL_OUTPUT_TOKENS"
+    printf  "${BBLUE}│${RST}  ${DIM}Agent tokens${RST}  ${CYAN}%-20s${RST} ${BBLUE}│${RST}\n" "$TOTAL_SUBAGENT_TOKENS"
     printf  "${BBLUE}│${RST}  ${DIM}Total cost${RST}    ${BMAGENTA}%-20s${RST} ${BBLUE}│${RST}\n" "$(printf '$%.4f' "$TOTAL_COST")"
     echo -e "${BBLUE}└──────────────────────────────────────┘${RST}"
 }
@@ -126,22 +131,24 @@ accumulate_stats() {
 
     local stats
     stats=$(jq -s '
-      [ .[] | select(.type == "result") ] |
       {
-        cost: (map(.total_cost_usd // 0) | add // 0),
-        input: (map(.usage.input_tokens // 0) | add // 0),
-        output: (map(.usage.output_tokens // 0) | add // 0)
+        cost:  ([ .[] | select(.type == "result") | (.cost_usd // .total_cost_usd // 0) ] | add // 0),
+        input: ([ .[] | select(.type == "result") | (.usage.input_tokens // 0) ] | add // 0),
+        output:([ .[] | select(.type == "result") | (.usage.output_tokens // 0) ] | add // 0),
+        sub:   ([ .[] | select(.type == "user") | .tool_use_result.totalTokens // empty ] | add // 0)
       }
     ' "$log_file" 2>/dev/null) || stats=""
 
     if [ -n "$stats" ]; then
-        local cost input output
+        local cost input output sub
         cost=$(echo "$stats" | jq -r '.cost')
         input=$(echo "$stats" | jq -r '.input')
         output=$(echo "$stats" | jq -r '.output')
+        sub=$(echo "$stats" | jq -r '.sub')
         TOTAL_COST=$(echo "$TOTAL_COST + $cost" | bc 2>/dev/null || echo "$TOTAL_COST")
         TOTAL_INPUT_TOKENS=$((TOTAL_INPUT_TOKENS + ${input%.*}))
         TOTAL_OUTPUT_TOKENS=$((TOTAL_OUTPUT_TOKENS + ${output%.*}))
+        TOTAL_SUBAGENT_TOKENS=$((TOTAL_SUBAGENT_TOKENS + ${sub%.*}))
     fi
     TOTAL_ITERATIONS=$((TOTAL_ITERATIONS + 1))
 }
