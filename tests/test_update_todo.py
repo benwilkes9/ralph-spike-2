@@ -71,7 +71,7 @@ async def test_put_blank_title(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.put(f"/todos/{todo_id}", json={"title": "   "})
     assert resp.status_code == 422
-    assert "blank" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title must not be blank"
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_put_title_too_long(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.put(f"/todos/{todo_id}", json={"title": "a" * 501})
     assert resp.status_code == 422
-    assert "500" in resp.json()["detail"]
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
 
 
 @pytest.mark.asyncio
@@ -186,7 +186,7 @@ async def test_patch_empty_body(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={})
     assert resp.status_code == 422
-    assert "at least one field" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "At least one field must be provided"
 
 
 @pytest.mark.asyncio
@@ -196,6 +196,7 @@ async def test_patch_only_unknown_fields(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"foo": "bar"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "At least one field must be provided"
 
 
 @pytest.mark.asyncio
@@ -205,6 +206,7 @@ async def test_patch_blank_title(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"title": "   "})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must not be blank"
 
 
 @pytest.mark.asyncio
@@ -214,6 +216,7 @@ async def test_patch_title_too_long(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"title": "a" * 501})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
 
 
 @pytest.mark.asyncio
@@ -224,6 +227,7 @@ async def test_patch_duplicate_title(client: AsyncClient) -> None:
     todo_id = r.json()["id"]
     resp = await client.patch(f"/todos/{todo_id}", json={"title": "existing"})
     assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
 
 
 @pytest.mark.asyncio
@@ -247,6 +251,7 @@ async def test_patch_non_integer_id(client: AsyncClient) -> None:
     """PATCH with a non-integer id returns 422."""
     resp = await client.patch("/todos/abc", json={"title": "Test"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -355,3 +360,69 @@ async def test_complete_ignores_body(client: AsyncClient) -> None:
         json={"foo": "bar"},
     )
     assert resp.status_code == 200
+
+
+# --- Additional edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_patch_title_null(client: AsyncClient) -> None:
+    """PATCH with title: null returns 422 (type error, not missing)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": None})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_title_non_string(client: AsyncClient) -> None:
+    """PATCH with title as a non-string type returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"title": 123})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_patch_completed_null(client: AsyncClient) -> None:
+    """PATCH with completed: null returns 422 (type error)."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.patch(f"/todos/{todo_id}", json={"completed": None})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"
+
+
+@pytest.mark.asyncio
+async def test_put_title_null(client: AsyncClient) -> None:
+    """PUT with title: null returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": None})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title is required"
+
+
+@pytest.mark.asyncio
+async def test_put_title_non_string(client: AsyncClient) -> None:
+    """PUT with title as a non-string type returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(f"/todos/{todo_id}", json={"title": 123})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_put_completed_string(client: AsyncClient) -> None:
+    """PUT with completed: 'yes' returns 422."""
+    r = await client.post("/todos", json={"title": "Test"})
+    todo_id = r.json()["id"]
+    resp = await client.put(
+        f"/todos/{todo_id}",
+        json={"title": "Valid", "completed": "yes"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be a boolean"

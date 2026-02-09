@@ -47,6 +47,7 @@ async def test_delete_non_integer_id(client: AsyncClient) -> None:
     """Deleting with a non-integer id returns 422."""
     resp = await client.delete("/todos/abc")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -54,6 +55,7 @@ async def test_delete_zero_id(client: AsyncClient) -> None:
     """Deleting with zero id returns 422."""
     resp = await client.delete("/todos/0")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -61,3 +63,14 @@ async def test_delete_negative_id(client: AsyncClient) -> None:
     """Deleting with negative id returns 422."""
     resp = await client.delete("/todos/-1")
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "id must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_deleted_id_not_reused(client: AsyncClient) -> None:
+    """The deleted todo's id is never reused."""
+    r1 = await client.post("/todos", json={"title": "Only one"})
+    only_id = r1.json()["id"]
+    await client.delete(f"/todos/{only_id}")
+    r2 = await client.post("/todos", json={"title": "After delete"})
+    assert r2.json()["id"] > only_id

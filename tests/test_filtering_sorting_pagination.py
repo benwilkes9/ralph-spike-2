@@ -38,6 +38,7 @@ async def test_filter_completed_invalid_yes(client: AsyncClient) -> None:
     """GET /todos?completed=yes returns 422."""
     resp = await client.get("/todos", params={"completed": "yes"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
 
 
 @pytest.mark.asyncio
@@ -45,6 +46,7 @@ async def test_filter_completed_invalid_1(client: AsyncClient) -> None:
     """GET /todos?completed=1 returns 422."""
     resp = await client.get("/todos", params={"completed": "1"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
 
 
 @pytest.mark.asyncio
@@ -52,6 +54,7 @@ async def test_filter_completed_empty_string(client: AsyncClient) -> None:
     """GET /todos?completed= returns 422."""
     resp = await client.get("/todos", params={"completed": ""})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "completed must be true or false"
 
 
 # --- Search ---
@@ -163,6 +166,7 @@ async def test_sort_invalid(client: AsyncClient) -> None:
     """GET /todos?sort=invalid returns 422."""
     resp = await client.get("/todos", params={"sort": "invalid"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "sort must be 'id' or 'title'"
 
 
 @pytest.mark.asyncio
@@ -170,6 +174,7 @@ async def test_order_invalid(client: AsyncClient) -> None:
     """GET /todos?order=invalid returns 422."""
     resp = await client.get("/todos", params={"order": "invalid"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "order must be 'asc' or 'desc'"
 
 
 # --- Pagination ---
@@ -212,6 +217,7 @@ async def test_page_zero(client: AsyncClient) -> None:
     """GET /todos?page=0 returns 422."""
     resp = await client.get("/todos", params={"page": "0"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -219,6 +225,7 @@ async def test_page_negative(client: AsyncClient) -> None:
     """GET /todos?page=-1 returns 422."""
     resp = await client.get("/todos", params={"page": "-1"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -226,6 +233,7 @@ async def test_page_non_numeric(client: AsyncClient) -> None:
     """GET /todos?page=abc returns 422."""
     resp = await client.get("/todos", params={"page": "abc"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
 
 
 @pytest.mark.asyncio
@@ -233,6 +241,7 @@ async def test_per_page_zero(client: AsyncClient) -> None:
     """GET /todos?per_page=0 returns 422."""
     resp = await client.get("/todos", params={"per_page": "0"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
 
 
 @pytest.mark.asyncio
@@ -240,6 +249,7 @@ async def test_per_page_negative(client: AsyncClient) -> None:
     """GET /todos?per_page=-1 returns 422."""
     resp = await client.get("/todos", params={"per_page": "-1"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
 
 
 @pytest.mark.asyncio
@@ -247,6 +257,7 @@ async def test_per_page_over_100(client: AsyncClient) -> None:
     """GET /todos?per_page=101 returns 422."""
     resp = await client.get("/todos", params={"per_page": "101"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
 
 
 @pytest.mark.asyncio
@@ -254,6 +265,7 @@ async def test_per_page_non_numeric(client: AsyncClient) -> None:
     """GET /todos?per_page=abc returns 422."""
     resp = await client.get("/todos", params={"per_page": "abc"})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"
 
 
 # --- Response envelope logic ---
@@ -321,3 +333,40 @@ async def test_envelope_total_reflects_filtered(client: AsyncClient) -> None:
     assert data["total"] == 5
     assert data["page"] == 1
     assert data["per_page"] == 2
+
+
+@pytest.mark.asyncio
+async def test_per_page_100_accepted(client: AsyncClient) -> None:
+    """GET /todos?per_page=100 is accepted (upper boundary)."""
+    await client.post("/todos", json={"title": "Test"})
+    resp = await client.get("/todos", params={"per_page": "100"})
+    assert resp.status_code == 200
+    assert resp.json()["per_page"] == 100
+
+
+@pytest.mark.asyncio
+async def test_pagination_empty_database(client: AsyncClient) -> None:
+    """Paginated request on empty database returns empty items with total 0."""
+    resp = await client.get("/todos", params={"page": "1", "per_page": "10"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["items"] == []
+    assert data["total"] == 0
+    assert data["page"] == 1
+    assert data["per_page"] == 10
+
+
+@pytest.mark.asyncio
+async def test_page_float_string(client: AsyncClient) -> None:
+    """GET /todos?page=1.5 returns 422."""
+    resp = await client.get("/todos", params={"page": "1.5"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "page must be a positive integer"
+
+
+@pytest.mark.asyncio
+async def test_per_page_float_string(client: AsyncClient) -> None:
+    """GET /todos?per_page=1.5 returns 422."""
+    resp = await client.get("/todos", params={"per_page": "1.5"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "per_page must be an integer between 1 and 100"

@@ -52,7 +52,7 @@ def _validate_title_value(title: Any) -> JSONResponse | None:
     if not trimmed:
         return _error_response(422, "title must not be blank")
     if len(trimmed) > 500:
-        return _error_response(422, "title must be at most 500 characters")
+        return _error_response(422, "title must be 500 characters or fewer")
     return None
 
 
@@ -134,7 +134,7 @@ async def list_todos(
     # Validate and apply completed filter
     if completed is not None:
         if completed not in ("true", "false"):
-            return _error_response(422, "completed must be 'true' or 'false'")
+            return _error_response(422, "completed must be true or false")
         query = query.where(Todo.completed == (completed == "true"))
 
     # Apply search filter
@@ -184,9 +184,11 @@ async def list_todos(
         try:
             per_page_num = int(per_page)
             if per_page_num < 1 or per_page_num > 100:
-                return _error_response(422, "per_page must be between 1 and 100")
+                per_page_msg = "per_page must be an integer between 1 and 100"
+                return _error_response(422, per_page_msg)
         except (ValueError, TypeError):
-            return _error_response(422, "per_page must be between 1 and 100")
+            per_page_msg = "per_page must be an integer between 1 and 100"
+            return _error_response(422, per_page_msg)
 
     # Count total matching items
     count_query = select(func.count()).select_from(query.subquery())
@@ -310,7 +312,7 @@ async def patch_todo(
     if has_title:
         title_val = body["title"]
         if title_val is None:
-            return _error_response(422, "title is required")
+            return _error_response(422, "title must be a string")
 
         title_err = _validate_title_value(title_val)
         if title_err is not None:

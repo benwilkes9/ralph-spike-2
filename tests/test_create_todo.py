@@ -61,7 +61,7 @@ async def test_create_todo_empty_title(client: AsyncClient) -> None:
     """A request with an empty string title returns 422."""
     resp = await client.post("/todos", json={"title": ""})
     assert resp.status_code == 422
-    assert "blank" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title must not be blank"
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_create_todo_whitespace_only_title(client: AsyncClient) -> None:
     """A request with a whitespace-only title returns 422."""
     resp = await client.post("/todos", json={"title": "   "})
     assert resp.status_code == 422
-    assert "blank" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title must not be blank"
 
 
 @pytest.mark.asyncio
@@ -77,7 +77,7 @@ async def test_create_todo_title_too_long(client: AsyncClient) -> None:
     """A request with title exceeding 500 characters returns 422."""
     resp = await client.post("/todos", json={"title": "a" * 501})
     assert resp.status_code == 422
-    assert "500" in resp.json()["detail"]
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
 
 
 @pytest.mark.asyncio
@@ -86,7 +86,7 @@ async def test_create_todo_duplicate_title(client: AsyncClient) -> None:
     await client.post("/todos", json={"title": "Buy milk"})
     resp = await client.post("/todos", json={"title": "Buy milk"})
     assert resp.status_code == 409
-    assert "already exists" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "A todo with this title already exists"
 
 
 @pytest.mark.asyncio
@@ -122,3 +122,24 @@ async def test_create_todo_title_non_string(client: AsyncClient) -> None:
     """Sending title as a non-string type returns 422."""
     resp = await client.post("/todos", json={"title": 123})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "title must be a string"
+
+
+@pytest.mark.asyncio
+async def test_create_todo_duplicate_after_trim_and_case_fold(
+    client: AsyncClient,
+) -> None:
+    """A title matching after trimming and case folding is a duplicate."""
+    await client.post("/todos", json={"title": "Buy milk"})
+    resp = await client.post("/todos", json={"title": "  Buy Milk  "})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "A todo with this title already exists"
+
+
+@pytest.mark.asyncio
+async def test_create_todo_title_500_after_trim(client: AsyncClient) -> None:
+    """Title over 500 chars before trim but exactly 500 after is OK."""
+    title_500 = "a" * 500
+    resp = await client.post("/todos", json={"title": f"  {title_500}  "})
+    assert resp.status_code == 201
+    assert len(resp.json()["title"]) == 500

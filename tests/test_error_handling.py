@@ -53,7 +53,7 @@ async def test_missing_title_first(client: AsyncClient) -> None:
     """Missing title error takes precedence over other checks."""
     resp = await client.post("/todos", json={})
     assert resp.status_code == 422
-    assert "required" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title is required"
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ async def test_type_error_before_blank(client: AsyncClient) -> None:
     """Non-string title returns type error before blank check."""
     resp = await client.post("/todos", json={"title": 123})
     assert resp.status_code == 422
-    assert "string" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title must be a string"
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_blank_before_length(client: AsyncClient) -> None:
     """Whitespace-only title returns blank error before length check."""
     resp = await client.post("/todos", json={"title": "   "})
     assert resp.status_code == 422
-    assert "blank" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "title must not be blank"
 
 
 @pytest.mark.asyncio
@@ -78,7 +78,7 @@ async def test_length_before_uniqueness(client: AsyncClient) -> None:
     await client.post("/todos", json={"title": "a" * 500})
     resp = await client.post("/todos", json={"title": "a" * 501})
     assert resp.status_code == 422
-    assert "500" in resp.json()["detail"]
+    assert resp.json()["detail"] == "title must be 500 characters or fewer"
 
 
 @pytest.mark.asyncio

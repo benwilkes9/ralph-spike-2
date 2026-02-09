@@ -1,6 +1,6 @@
 # Implementation Plan: Todo CRUD REST API
 
-All sections implemented and tested. 123 tests passing, pyright strict clean, ruff clean.
+All sections implemented and tested. 136 tests passing, pyright strict clean, ruff clean.
 
 ## Completed
 
@@ -30,8 +30,17 @@ All sections implemented and tested. 123 tests passing, pyright strict clean, ru
 - **6.2** pyproject.toml description updated — [x]
 - **6.3** Package docstring updated — [x]
 
+## Fixes Applied (0.0.8)
+
+- **Error messages aligned to spec**: Title length (`"title must be 500 characters or fewer"`), completed filter (`"completed must be true or false"` without quotes), per_page (`"per_page must be an integer between 1 and 100"` with "an integer").
+- **PATCH `title: null`**: Changed from `"title is required"` to `"title must be a string"` — in PATCH, title is optional so null is a type error, not a missing field.
+- **SQLite AUTOINCREMENT**: Added `sqlite_autoincrement=True` to Todo model to prevent ID reuse after deletion, matching spec requirement.
+- **Test assertions tightened**: All error detail messages now use exact string equality assertions instead of loose substring checks. Covers create, update, delete, filtering, sorting, pagination.
+- **New tests added (13)**: PATCH title null/non-string/completed null, PUT title null/non-string/completed string, deleted ID not reused, combined trim+case-fold uniqueness, title 500 after trim, per_page=100 boundary, empty DB pagination, page/per_page float strings.
+
 ## Architecture Notes
 
 - **PATCH field tracking**: Uses raw body dict inspection rather than Pydantic model validators because `extra="ignore"` strips tracking fields. The route handler checks `"title" in body` and `"completed" in body` directly.
 - **Path param validation**: All `{todo_id}` params are typed as `str` to bypass FastAPI's built-in int conversion, enabling custom validation with consistent error messages.
 - **Ruff config**: B008 suppressed for routes.py (FastAPI Depends pattern), TCH suppressed for test files (pytest fixture type hints need runtime imports).
+- **SQLite AUTOINCREMENT**: Model uses `sqlite_autoincrement=True` in `__table_args__` to ensure deleted IDs are never reused per spec.
