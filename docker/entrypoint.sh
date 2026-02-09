@@ -20,8 +20,12 @@ git config --global commit.gpgsign false
 
 # ─── Clone repo ──────────────────────────────────────────────────
 CLONE_URL="https://x-access-token:${GITHUB_PAT}@github.com/${REPO}.git"
-git clone --branch "$BRANCH" "$CLONE_URL" /workspace/repo
+mkdir -p /workspace/repo
 cd /workspace/repo
+git init
+git remote add origin "$CLONE_URL"
+git fetch origin "$BRANCH"
+git checkout -B "$BRANCH" "origin/$BRANCH"
 
 # ─── Install project dependencies ───────────────────────────────
 uv sync --all-extras
