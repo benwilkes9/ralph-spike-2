@@ -6,7 +6,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 1: [ ] Project Dependencies & App Scaffold
+## Task 1: [x] Project Dependencies & App Scaffold
 
 **Description:** Add FastAPI, Uvicorn, and SQLite/SQLAlchemy dependencies to `pyproject.toml`. Create the FastAPI application entry point with a health-check or root route. Configure the app to run with Uvicorn. Override FastAPI's default 422 validation error handler to return `{"detail": "..."}` (string) instead of the default Pydantic array format. Add a handler for malformed JSON request bodies returning 422 with `{"detail": "..."}`. This foundational error-handling setup is required before any endpoint tasks.
 
@@ -19,7 +19,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - FastAPI's default 422 response for Pydantic validation errors is overridden to use `{"detail": "..."}` (string, not array).
 - Malformed JSON request body returns 422 with `{"detail": "..."}` format.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
