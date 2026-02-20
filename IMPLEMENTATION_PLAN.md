@@ -41,7 +41,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 3: [ ] Create Todo Endpoint (POST /todos)
+## Task 3: [x] Create Todo Endpoint (POST /todos)
 
 **Description:** Implement `POST /todos` to create a new todo item. Accept `title` in the request body. Trim leading/trailing whitespace from `title` before validation. Validate: required, non-blank, max 500 chars, unique (case-insensitive). Ignore `completed` in request body (always default to `false`). Return 201 with the created todo object. Return appropriate error codes (422, 409) for validation failures.
 
@@ -63,7 +63,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - Unknown fields in the request body (e.g., `"foo": "bar"`) are silently ignored.
 - POST with `{"title": 123}` (wrong type) returns 422.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 

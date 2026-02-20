@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ralf_spike_2.database import Base, engine
+from ralf_spike_2.routes import router
 
 
 @asynccontextmanager
@@ -79,6 +80,8 @@ def create_app() -> FastAPI:
     async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "ok"}
+
+    application.include_router(router)
 
     return application
 
