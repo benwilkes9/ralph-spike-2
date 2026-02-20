@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -180,6 +180,28 @@ def incomplete_todo(todo_id: str, db: DbSession) -> JSONResponse | Todo:
     db.commit()
     db.refresh(todo)
     return todo
+
+
+@router.delete("/todos/{todo_id}", response_model=None)
+def delete_todo(todo_id: str, db: DbSession) -> JSONResponse | Response:
+    """Delete a todo item permanently."""
+    id_int = _validate_todo_id(todo_id)
+    if id_int is None:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "id must be a positive integer"},
+        )
+
+    todo = db.query(Todo).filter(Todo.id == id_int).first()
+    if todo is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Todo not found"},
+        )
+
+    db.delete(todo)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.patch("/todos/{todo_id}", response_model=TodoResponse)

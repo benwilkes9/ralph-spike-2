@@ -154,7 +154,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 8: [ ] Delete Todo Endpoint (DELETE /todos/{id})
+## Task 8: [x] Delete Todo Endpoint (DELETE /todos/{id})
 
 **Description:** Implement `DELETE /todos/{id}` to permanently remove a todo. Return 204 with no body on success. Return 404 for non-existent id, 422 for non-integer id.
 
@@ -168,7 +168,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - DELETE on `id=0` returns 422.
 - DELETE on `id=-1` returns 422.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
