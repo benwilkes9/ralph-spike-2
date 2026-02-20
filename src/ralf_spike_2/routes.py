@@ -1,9 +1,10 @@
 """API route handlers."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -27,10 +28,113 @@ def _validate_todo_id(todo_id: str) -> int | None:
     return id_int
 
 
-@router.get("/todos", response_model=list[TodoResponse])
-def list_todos(db: DbSession) -> list[Todo]:
-    """Return all todos ordered by id descending (newest first)."""
-    return list(db.query(Todo).order_by(Todo.id.desc()).all())
+@router.get("/todos")
+def list_todos(request: Request, db: DbSession) -> Any:
+    """Return todos with optional filtering, sorting, search, and pagination."""
+    params = dict(request.query_params)
+    has_params = len(params) > 0
+
+    # If no query params, return plain array (backward compatible)
+    if not has_params:
+        todos = db.query(Todo).order_by(Todo.id.desc()).all()
+        return [TodoResponse.model_validate(t) for t in todos]
+
+    # --- Validate query parameters ---
+
+    # completed filter
+    completed_filter: bool | None = None
+    if "completed" in params:
+        val = params["completed"]
+        if val == "true":
+            completed_filter = True
+        elif val == "false":
+            completed_filter = False
+        else:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": "completed must be true or false"},
+            )
+
+    # search
+    search: str | None = params.get("search")
+
+    # sort
+    sort_field = params.get("sort", "id")
+    if sort_field not in ("id", "title"):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "sort must be 'id' or 'title'"},
+        )
+
+    # order
+    order = params.get("order", "desc")
+    if order not in ("asc", "desc"):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "order must be 'asc' or 'desc'"},
+        )
+
+    # page
+    page_str = params.get("page", "1")
+    try:
+        page = int(page_str)
+    except (ValueError, TypeError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "page must be a positive integer"},
+        )
+    if page < 1:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "page must be a positive integer"},
+        )
+
+    # per_page
+    per_page_str = params.get("per_page", "10")
+    try:
+        per_page = int(per_page_str)
+    except (ValueError, TypeError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "per_page must be an integer between 1 and 100"},
+        )
+    if per_page < 1 or per_page > 100:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "per_page must be an integer between 1 and 100"},
+        )
+
+    # --- Build query ---
+    query = db.query(Todo)
+
+    # Apply filters
+    if completed_filter is not None:
+        query = query.filter(Todo.completed == completed_filter)
+
+    if search is not None and search != "":
+        query = query.filter(Todo.title.ilike(f"%{search}%"))
+
+    # Get total count before pagination
+    total = query.count()
+
+    # Apply sorting
+    sort_col = func.lower(Todo.title) if sort_field == "title" else Todo.id
+
+    if order == "asc":
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
+
+    # Apply pagination
+    offset = (page - 1) * per_page
+    todos = query.offset(offset).limit(per_page).all()
+
+    return {
+        "items": [TodoResponse.model_validate(t) for t in todos],
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+    }
 
 
 @router.get("/todos/{todo_id}", response_model=TodoResponse)

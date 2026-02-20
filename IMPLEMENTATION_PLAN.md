@@ -172,7 +172,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 9: [ ] List Filtering, Sorting, Search & Pagination (GET /todos with query params)
+## Task 9: [x] List Filtering, Sorting, Search & Pagination (GET /todos with query params)
 
 **Description:** Extend `GET /todos` to support query parameters: `completed` (filter), `search` (case-insensitive substring), `sort` (`id` or `title`), `order` (`asc` or `desc`), `page` (1-indexed), `per_page` (1–100). When any query parameter is provided, return paginated envelope `{"items": [...], "page": N, "per_page": N, "total": N}`. When no query parameters are provided, return a plain JSON array (backward compatible).
 
@@ -203,7 +203,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - `GET /todos?completed=true` returns `total` reflecting only matching (completed) todos, not all todos.
 - Default pagination when query params are present: `page=1`, `per_page=10`.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 

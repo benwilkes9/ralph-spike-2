@@ -35,3 +35,12 @@ class TodoResponse(BaseModel):
     completed: bool
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedTodoResponse(BaseModel):
+    """Schema for paginated todo list response."""
+
+    items: list[TodoResponse]
+    page: int
+    per_page: int
+    total: int
