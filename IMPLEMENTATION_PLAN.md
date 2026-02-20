@@ -112,7 +112,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 6: [ ] Update Todo — PATCH /todos/{id}
+## Task 6: [x] Update Todo — PATCH /todos/{id}
 
 **Description:** Implement `PATCH /todos/{id}` for partial update. Only provided fields are updated; omitted fields remain unchanged. At least one recognized field must be provided. Same title validation rules apply when `title` is provided.
 
@@ -132,7 +132,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - Title is trimmed when provided.
 - PATCH with `{"completed": "yes"}` (wrong type) returns 422.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 

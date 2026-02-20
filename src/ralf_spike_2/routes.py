@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ralf_spike_2.database import get_db
 from ralf_spike_2.models import Todo
-from ralf_spike_2.schemas import TodoCreate, TodoResponse, TodoUpdate
+from ralf_spike_2.schemas import TodoCreate, TodoPatch, TodoResponse, TodoUpdate
 
 router = APIRouter()
 
@@ -131,6 +131,68 @@ def update_todo(todo_id: str, body: TodoUpdate, db: DbSession) -> JSONResponse |
 
     todo.title = title
     todo.completed = body.completed
+    db.commit()
+    db.refresh(todo)
+    return todo
+
+
+@router.patch("/todos/{todo_id}", response_model=TodoResponse)
+def patch_todo(todo_id: str, body: TodoPatch, db: DbSession) -> JSONResponse | Todo:
+    """Partial update of a todo item."""
+    id_int = _validate_todo_id(todo_id)
+    if id_int is None:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "id must be a positive integer"},
+        )
+
+    # Check that at least one recognized field is provided
+    recognized_fields = body.model_fields_set & {"title", "completed"}
+    if not recognized_fields:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "At least one field must be provided"},
+        )
+
+    todo = db.query(Todo).filter(Todo.id == id_int).first()
+    if todo is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Todo not found"},
+        )
+
+    if "title" in recognized_fields:
+        title = body.title.strip()  # type: ignore[union-attr]
+
+        if not title:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": "title must not be blank"},
+            )
+
+        if len(title) > 500:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": "title must be 500 characters or fewer"},
+            )
+
+        # Check uniqueness excluding self
+        existing = (
+            db.query(Todo)
+            .filter(Todo.title == title, Todo.id != id_int)
+            .first()
+        )
+        if existing is not None:
+            return JSONResponse(
+                status_code=409,
+                content={"detail": "A todo with this title already exists"},
+            )
+
+        todo.title = title
+
+    if "completed" in recognized_fields:
+        todo.completed = body.completed  # type: ignore[assignment]
+
     db.commit()
     db.refresh(todo)
     return todo
