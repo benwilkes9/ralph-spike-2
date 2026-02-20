@@ -1,16 +1,29 @@
 """FastAPI application entry point."""
 
 import json
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from ralf_spike_2.database import Base, engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Create database tables on startup."""
+    __import__("ralf_spike_2.models")  # ensure models are registered
+
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    application = FastAPI()
+    application = FastAPI(lifespan=lifespan)
 
     @application.exception_handler(RequestValidationError)
     async def validation_exception_handler(

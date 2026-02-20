@@ -23,7 +23,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 2: [ ] Database Layer & Todo Model
+## Task 2: [x] Database Layer & Todo Model
 
 **Description:** Set up SQLAlchemy with SQLite. Define the `Todo` model with fields: `id` (auto-increment integer PK), `title` (string, max 500 chars, unique case-insensitive), `completed` (boolean, default `false`). Create a session/dependency for database access. Ensure `title` has a case-insensitive unique constraint. Implement table creation on app startup.
 
@@ -37,7 +37,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - `title` is stored as provided (trimming is an application concern, not DB).
 - Deleted `id` values are never reused (SQLite auto-increment behavior).
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
