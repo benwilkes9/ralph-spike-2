@@ -67,7 +67,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 4: [ ] Retrieve Todos Endpoints (GET /todos, GET /todos/{id})
+## Task 4: [x] Retrieve Todos Endpoints (GET /todos, GET /todos/{id})
 
 **Description:** Implement `GET /todos` to return all todos as a JSON array, ordered by `id` descending (newest first). Implement `GET /todos/{id}` to return a single todo. Return 404 for non-existent id, 422 for non-integer id.
 
@@ -82,7 +82,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - `GET /todos/0` returns 422 (not a positive integer).
 - `GET /todos/-1` returns 422 (not a positive integer).
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
