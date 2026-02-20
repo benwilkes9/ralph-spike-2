@@ -1,0 +1,16 @@
+project: "ralf-spike-2"
+agent: claude
+
+backpressure:
+  test: "uv run pytest"
+  typecheck: "uv run pyright"
+  lint: "uv run ruff check"
+
+phases:
+  plan:
+    prompt: .ralph/prompts/plan.md
+    output: .ralph/IMPLEMENTATION_PLAN.md
+    max_iterations: 5
+  build:
+    prompt: .ralph/prompts/build.md
+    max_iterations: 20

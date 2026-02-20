@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+# ─── Validate required env vars ─────────────────────────────────
+missing=()
+[ -z "${ANTHROPIC_API_KEY:-}" ] && missing+=("ANTHROPIC_API_KEY")
+[ -z "${GITHUB_PAT:-}" ]       && missing+=("GITHUB_PAT")
+[ -z "${REPO:-}" ]             && missing+=("REPO")
+[ -z "${BRANCH:-}" ]           && missing+=("BRANCH")
+
+if [ ${#missing[@]} -gt 0 ]; then
+    echo "Error: missing required env vars: ${missing[*]}" >&2
+    exit 1
+fi
+
+# ─── Git config ──────────────────────────────────────────────────
+git config --global user.name "Claude"
+git config --global user.email "noreply@anthropic.com"
+git config --global commit.gpgsign false
+
+# ─── Git credentials (avoid embedding token in URLs) ─────────────
+git config --global credential.helper store
+printf 'protocol=https\nhost=github.com\nusername=x-access-token\npassword=%s\n' "$GITHUB_PAT" \
+    | git credential approve
+unset GITHUB_PAT
+
+# ─── Clone repo ──────────────────────────────────────────────────
+cd /workspace/repo
+git init
+git remote add origin "https://github.com/${REPO}.git"
+if ! git fetch origin "$BRANCH" 2>/dev/null; then
+    echo "Error: branch '$BRANCH' not found on remote '${REPO}'." >&2
+    echo "Push it first:  git push -u origin $BRANCH" >&2
+    exit 1
+fi
+git checkout -b "$BRANCH" "origin/$BRANCH"
+
+# ─── Install project dependencies ───────────────────────────────
+uv sync --all-extras
+
+# ─── Claude Code settings ────────────────────────────────────────
+export DISABLE_AUTOUPDATER=1
+
+# ─── Hand off to ralph loop ──────────────────────────────────────
+exec ralph _loop "$@"
