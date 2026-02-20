@@ -8,7 +8,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ## Task 1: [ ] Project Dependencies & App Scaffold
 
-**Description:** Add FastAPI, Uvicorn, and SQLite/SQLAlchemy dependencies to `pyproject.toml`. Create the FastAPI application entry point with a health-check or root route. Configure the app to run with Uvicorn.
+**Description:** Add FastAPI, Uvicorn, and SQLite/SQLAlchemy dependencies to `pyproject.toml`. Create the FastAPI application entry point with a health-check or root route. Configure the app to run with Uvicorn. Override FastAPI's default 422 validation error handler to return `{"detail": "..."}` (string) instead of the default Pydantic array format. Add a handler for malformed JSON request bodies returning 422 with `{"detail": "..."}`. This foundational error-handling setup is required before any endpoint tasks.
 
 **Spec(s):** `specs/data-model.md`, `specs/error-handling.md`
 
@@ -16,6 +16,8 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - The FastAPI app instance is importable from the package.
 - `GET /` or a health endpoint returns a 200 response (optional, for smoke testing).
 - The test client (`TestClient`) can be instantiated against the app without errors.
+- FastAPI's default 422 response for Pydantic validation errors is overridden to use `{"detail": "..."}` (string, not array).
+- Malformed JSON request body returns 422 with `{"detail": "..."}` format.
 
 **Status:** `[ ]`
 
@@ -56,6 +58,8 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - POST with a title of exactly 500 characters returns 201 (boundary).
 - Creating `"Buy milk"` then `"buy milk"` returns 409 with `{"detail": "A todo with this title already exists"}`.
 - POST with `{"title": "  hello  "}` stores and returns `"hello"` (trimmed).
+- POST with a title of 502 chars where 2 are leading/trailing spaces (trimmed = 500 chars) returns 201 (length validated after trimming).
+- Creating `"  Buy milk  "` after `"Buy milk"` exists returns 409 (uniqueness checked on trimmed value).
 - Unknown fields in the request body (e.g., `"foo": "bar"`) are silently ignored.
 - POST with `{"title": 123}` (wrong type) returns 422.
 
@@ -94,8 +98,10 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - PUT omitting `completed` resets it to `false`.
 - PUT with missing `title` returns 422 with `{"detail": "title is required"}`.
 - PUT with blank title returns 422.
+- PUT with `{"title": "   "}` (whitespace only) returns 422 with `{"detail": "title must not be blank"}`.
 - PUT with title exceeding 500 chars returns 422.
-- PUT with duplicate title (case-insensitive, different todo) returns 409.
+- PUT with a title of exactly 500 characters returns 200 (boundary).
+- PUT with duplicate title (case-insensitive, different todo) returns 409 with `{"detail": "A todo with this title already exists"}`.
 - PUT updating a todo's title to its own current title (same id) succeeds (200).
 - PUT on non-existent id returns 404.
 - PUT on non-integer id returns 422.
@@ -118,7 +124,9 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - PATCH with `{"title": "Updated", "completed": true}` updates both fields.
 - PATCH with empty body `{}` returns 422 with `{"detail": "At least one field must be provided"}`.
 - PATCH with only unknown fields `{"foo": "bar"}` returns 422 (treated as empty).
-- PATCH with duplicate title (case-insensitive, different todo) returns 409.
+- PATCH with `{"title": "   "}` (whitespace only) returns 422 with `{"detail": "title must not be blank"}`.
+- PATCH with title exceeding 500 chars returns 422.
+- PATCH with duplicate title (case-insensitive, different todo) returns 409 with `{"detail": "A todo with this title already exists"}`.
 - PATCH on non-existent id returns 404.
 - PATCH on non-integer id returns 422.
 - Title is trimmed when provided.
@@ -158,6 +166,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - DELETE on non-existent id returns 404 with `{"detail": "Todo not found"}`.
 - DELETE on non-integer id (`/todos/abc`) returns 422 with `{"detail": "id must be a positive integer"}`.
 - DELETE on `id=0` returns 422.
+- DELETE on `id=-1` returns 422.
 
 **Status:** `[ ]`
 
@@ -175,7 +184,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - `GET /todos?completed=false` returns only incomplete todos in paginated envelope.
 - `GET /todos?completed=maybe` returns 422 with `{"detail": "completed must be true or false"}`.
 - `GET /todos?search=buy` returns todos whose title contains "buy" (case-insensitive).
-- `GET /todos?search=` (empty string) returns all todos (treated as no filter).
+- `GET /todos?search=` (empty string) returns all todos in paginated envelope (query param is present, but search filter is effectively ignored).
 - `GET /todos?completed=true&search=buy` returns completed todos containing "buy".
 - `GET /todos?sort=title&order=asc` returns todos sorted alphabetically ascending by title (case-insensitive).
 - `GET /todos?sort=id&order=desc` returns todos sorted by id descending (default behavior).
@@ -188,6 +197,10 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - `GET /todos?per_page=0` returns 422 with `{"detail": "per_page must be an integer between 1 and 100"}`.
 - `GET /todos?per_page=101` returns 422.
 - `GET /todos?per_page=1` returns one item per page.
+- `GET /todos?per_page=abc` (non-integer) returns 422.
+- `GET /todos?page=-1` returns 422.
+- `GET /todos?completed=false` uses default sort `id` descending within paginated envelope.
+- `GET /todos?completed=true` returns `total` reflecting only matching (completed) todos, not all todos.
 - Default pagination when query params are present: `page=1`, `per_page=10`.
 
 **Status:** `[ ]`
@@ -196,15 +209,13 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ## Task 10: [ ] Error Handling & Validation Consistency
 
-**Description:** Ensure all error responses use the `{"detail": "..."}` format. Ensure validation order is enforced: missing field → type error → blank/whitespace → length exceeded → uniqueness violation. Only one error per request. Override FastAPI's default 422 response format to use `{"detail": "..."}` instead of the default Pydantic validation error structure. Handle malformed JSON bodies with a clear error.
+**Description:** Verify all error responses across all endpoints use the `{"detail": "..."}` format consistently. Verify validation order is enforced: missing field → type error → blank/whitespace → length exceeded → uniqueness violation. Only one error per request. (Note: the FastAPI default 422 override and malformed JSON handler are set up in Task 1; this task adds cross-cutting integration tests to verify consistency across all endpoints.)
 
 **Spec(s):** `specs/error-handling.md`
 
 **Tests:**
 - All error responses across all endpoints use `{"detail": "..."}` format (not arrays, not nested).
 - A request triggering multiple validation errors returns only the first per the priority order.
-- FastAPI's default 422 response for Pydantic validation errors is overridden to use `{"detail": "..."}`.
-- Malformed JSON request body returns 422 with a descriptive detail message.
 - Unknown fields in request bodies are silently ignored across all endpoints.
 - A PATCH request with only unknown fields returns 422.
 - Type mismatches on recognized fields (e.g., `"title": 123`, `"completed": "yes"`) return 422.
