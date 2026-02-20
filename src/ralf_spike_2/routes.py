@@ -136,6 +136,52 @@ def update_todo(todo_id: str, body: TodoUpdate, db: DbSession) -> JSONResponse |
     return todo
 
 
+@router.post("/todos/{todo_id}/complete", response_model=TodoResponse)
+def complete_todo(todo_id: str, db: DbSession) -> JSONResponse | Todo:
+    """Set a todo's completed status to true."""
+    id_int = _validate_todo_id(todo_id)
+    if id_int is None:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "id must be a positive integer"},
+        )
+
+    todo = db.query(Todo).filter(Todo.id == id_int).first()
+    if todo is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Todo not found"},
+        )
+
+    todo.completed = True
+    db.commit()
+    db.refresh(todo)
+    return todo
+
+
+@router.post("/todos/{todo_id}/incomplete", response_model=TodoResponse)
+def incomplete_todo(todo_id: str, db: DbSession) -> JSONResponse | Todo:
+    """Set a todo's completed status to false."""
+    id_int = _validate_todo_id(todo_id)
+    if id_int is None:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "id must be a positive integer"},
+        )
+
+    todo = db.query(Todo).filter(Todo.id == id_int).first()
+    if todo is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Todo not found"},
+        )
+
+    todo.completed = False
+    db.commit()
+    db.refresh(todo)
+    return todo
+
+
 @router.patch("/todos/{todo_id}", response_model=TodoResponse)
 def patch_todo(todo_id: str, body: TodoPatch, db: DbSession) -> JSONResponse | Todo:
     """Partial update of a todo item."""

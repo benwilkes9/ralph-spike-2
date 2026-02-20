@@ -136,7 +136,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 7: [ ] Convenience Endpoints — POST /todos/{id}/complete & /incomplete
+## Task 7: [x] Convenience Endpoints — POST /todos/{id}/complete & /incomplete
 
 **Description:** Implement `POST /todos/{id}/complete` to set `completed` to `true` and `POST /todos/{id}/incomplete` to set `completed` to `false`. Both are idempotent and return 200 with the full todo object. No request body required.
 
@@ -150,7 +150,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - Both endpoints return 404 for non-existent id.
 - Both endpoints return 422 for non-integer id.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
