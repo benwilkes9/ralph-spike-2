@@ -86,7 +86,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 5: [ ] Update Todo — PUT /todos/{id}
+## Task 5: [x] Update Todo — PUT /todos/{id}
 
 **Description:** Implement `PUT /todos/{id}` for full replacement. `title` is required; `completed` is optional (defaults to `false` if omitted). Trim `title`, validate (non-blank, max 500, unique excluding self). Return 200 with updated todo.
 
@@ -108,7 +108,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - Title is trimmed before validation and storage.
 - Unknown fields are silently ignored.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ralf_spike_2.database import get_db
 from ralf_spike_2.models import Todo
-from ralf_spike_2.schemas import TodoCreate, TodoResponse
+from ralf_spike_2.schemas import TodoCreate, TodoResponse, TodoUpdate
 
 router = APIRouter()
 
@@ -82,5 +82,55 @@ def create_todo(body: TodoCreate, db: DbSession) -> JSONResponse | Todo:
             status_code=409,
             content={"detail": "A todo with this title already exists"},
         )
+    db.refresh(todo)
+    return todo
+
+
+@router.put("/todos/{todo_id}", response_model=TodoResponse)
+def update_todo(todo_id: str, body: TodoUpdate, db: DbSession) -> JSONResponse | Todo:
+    """Full replacement of a todo item."""
+    id_int = _validate_todo_id(todo_id)
+    if id_int is None:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "id must be a positive integer"},
+        )
+
+    todo = db.query(Todo).filter(Todo.id == id_int).first()
+    if todo is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Todo not found"},
+        )
+
+    title = body.title.strip()
+
+    if not title:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "title must not be blank"},
+        )
+
+    if len(title) > 500:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "title must be 500 characters or fewer"},
+        )
+
+    # Check uniqueness excluding self
+    existing = (
+        db.query(Todo)
+        .filter(Todo.title == title, Todo.id != id_int)
+        .first()
+    )
+    if existing is not None:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "A todo with this title already exists"},
+        )
+
+    todo.title = title
+    todo.completed = body.completed
+    db.commit()
     db.refresh(todo)
     return todo
