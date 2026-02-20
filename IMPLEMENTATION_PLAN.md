@@ -224,7 +224,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 11: [ ] Documentation Update
+## Task 11: [x] Documentation Update
 
 **Description:** Update `README.md` so a new developer can clone the repo, follow instructions, and have the API running. Include: project description, prerequisites, install steps, how to run the dev server, how to run tests, API endpoint summary.
 
@@ -237,4 +237,4 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - README includes how to run tests.
 - README includes a brief API endpoint reference.
 
-**Status:** `[ ]`
+**Status:** `[x]`
