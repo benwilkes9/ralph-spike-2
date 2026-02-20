@@ -13,7 +13,7 @@ class TodoUpdate(BaseModel):
     """Schema for full replacement of a todo (PUT)."""
 
     title: str
-    completed: bool = False
+    completed: StrictBool = False
 
     model_config = {"extra": "ignore"}
 

@@ -207,7 +207,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 
 ---
 
-## Task 10: [ ] Error Handling & Validation Consistency
+## Task 10: [x] Error Handling & Validation Consistency
 
 **Description:** Verify all error responses across all endpoints use the `{"detail": "..."}` format consistently. Verify validation order is enforced: missing field → type error → blank/whitespace → length exceeded → uniqueness violation. Only one error per request. (Note: the FastAPI default 422 override and malformed JSON handler are set up in Task 1; this task adds cross-cutting integration tests to verify consistency across all endpoints.)
 
@@ -220,7 +220,7 @@ A production-ready REST API for managing Todo items, built with FastAPI and SQLi
 - A PATCH request with only unknown fields returns 422.
 - Type mismatches on recognized fields (e.g., `"title": 123`, `"completed": "yes"`) return 422.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
