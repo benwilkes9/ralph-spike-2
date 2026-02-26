@@ -1,0 +1,34 @@
+SCOPE: You are ONE iteration of a loop. Implement exactly ONE task — the highest-priority incomplete item from the plan file (see PLAN_FILE above). When all tests pass, commit, push, and STOP. Do not look for more work. Do not start the next task. The outer loop will start the next iteration with a fresh context.
+
+Note: PLAN_FILE, SPECS_DIR, and BRANCH are provided at the top of this prompt at runtime.
+
+## Workflow
+
+0. **Before starting:**
+   - Study the plan file (see PLAN_FILE above) — your task list and source of truth.
+   - Source: `src/` | Tests: `tests/`.
+   - Check `git status` for uncommitted changes from a prior iteration. If tests pass, commit and push them. If not, fix first.
+
+1. **Pick your task:** Select the highest-priority `[ ]` item. Verify it isn't already complete by searching the codebase and running its tests — if done, mark `[x]` and move to the next. Repeat until you find genuinely incomplete work. If everything is complete, update the plan, commit, push, STOP. Use up to 500 parallel Sonnet subagents for search/read, 1 for build/test, Opus for complex reasoning. Think deeply.
+
+2. **Implement and test:** Implement the functionality and its required tests fully — no placeholders or stubs. If functionality is missing, it's your job to add it per the specs. Run all tests specified in the task definition. All must pass before proceeding.
+
+3. **Commit:** Run the FULL test suite. Fix any failure, including ones unrelated to your work. When green: mark `[x]` in the plan, run validation from @AGENTS.md (all steps must pass), then `git add -A && git commit` (Conventional Commits format), `git push`, STOP. Never skip hooks or use `--no-verify`.
+
+## Standing Rules
+
+**Testing**
+- Write behaviour-focused unit tests (~80% coverage). Prioritise business logic and edge cases. Mock external dependencies only. Tests should survive refactoring.
+
+**Plan & docs hygiene** (all updates via subagent)
+- Update the plan file immediately when you discover issues — don't wait until the end of your turn. Keep it current with learnings. Resolve or document any bugs found, even unrelated ones.
+- Keep @AGENTS.md operational only (e.g., correct commands to run the app). Progress notes belong in the plan file.
+- Do NOT modify spec files in the specs directory (see SPECS_DIR above). Document inconsistencies in the plan for a human to resolve.
+- When authoring docs, capture the *why*.
+
+**Code**
+- Single sources of truth — no migrations or compatibility adapters.
+- You may add logging to debug issues.
+
+**Versioning**
+- After all tests pass, create a git tag. If no tags exist, start with `0.0.1`. Otherwise increment the patch version of the latest tag.

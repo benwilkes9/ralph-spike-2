@@ -1,0 +1,25 @@
+project: "ralf-spike-2"
+agent: claude
+specs_dir: "specs"
+
+backpressure:
+  test: "uv run pytest"
+  typecheck: "uv run pyright"
+  lint: "uv run ruff check"
+
+phases:
+  plan:
+    prompt: .ralph/prompts/plan.md
+    output: .ralph/plans/
+    max_iterations: 5
+  build:
+    prompt: .ralph/prompts/build.md
+    max_iterations: 20
+
+network:
+  extra_allowed_domains:
+    - pypi.org
+    - files.pythonhosted.org
+
+docker:
+  deps_dir: ".venv"

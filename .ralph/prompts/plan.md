@@ -1,0 +1,34 @@
+SCOPE: You are a planning iteration. Study the specs and codebase, then create or update the plan file (see PLAN_FILE above) with a correct, complete task list. Do NOT implement anything.
+
+Note: PLAN_FILE, SPECS_DIR, and BRANCH are provided at the top of this prompt at runtime.
+
+## Goal
+
+Production-ready REST API
+
+## Workflow
+
+0. **Preparation:**
+   - Study the specs directory (see SPECS_DIR above) with up to 250 parallel Sonnet subagents.
+   - Study `src/` and `tests/` with up to 250 parallel Sonnet subagents.
+   - Review the plan file (see PLAN_FILE above), if present; it may be incorrect.
+   - Review project files (`README.md`, etc.) — plan documentation tasks so a new developer can clone and run.
+   - Check `git status` for uncommitted changes from a prior iteration. If any, review, commit, and push.
+
+1. **Analyze and plan:** Compare codebase against specs using up to 500 Sonnet subagents. Use an Opus subagent to analyze findings, prioritize, and create/update the plan file. Think deeply. Search for TODOs, placeholders, minimal implementations, skipped/flaky tests, and inconsistent patterns. Do NOT assume functionality is missing — confirm with code search. If an element is missing from specs, search first to confirm — then author the specification at the appropriate path under SPECS_DIR and add a corresponding task to the plan.
+
+## Task Format
+
+Each task must include:
+- **Title** as a heading (e.g., `### Task 1.1: Short name`).
+- **Status** on its own line: `- [ ] **Status:** Incomplete` or `- [x] **Status:** Complete`. Mark `[x]` only if code and tests already exist and pass — verify by searching, don't assume.
+- **Description** of what to implement.
+- **Spec(s):** which spec file(s) the task derives from. The build loop uses this to know which specs to read.
+- **Tests:** specific, concrete test scenarios derived from acceptance criteria. Each describes a verifiable outcome, not vague assertions. Tests verify WHAT works (behavior, edge cases), not HOW.
+
+**Priority order:** foundational first (dependencies, DB, scaffold) → core features → advanced features → cross-cutting concerns (error handling, validation) → documentation.
+
+## Constraints
+
+- **Convergence:** If the plan file already covers all specs, verify correctness but do NOT rewrite or restyle. Only commit for factual errors (wrong status code, missing task, incorrect field name) or missing tasks. Do NOT commit formatting-only or rewording-only changes. The plan does not need to be perfect prose — it needs to be correct and complete.
+- **Commit:** When files changed, `git add -A && git commit` with a descriptive message, then `git push`. If nothing changed, don't commit. If only cosmetic changes, `git checkout -- .` and don't commit.

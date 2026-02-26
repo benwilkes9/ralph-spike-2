@@ -15,3 +15,5 @@ htmlcov/
 
 .DS_Store
 logs/
+.ralph/logs/
+.ralph/state.json
